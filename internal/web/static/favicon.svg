@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- A burrow entrance: a mound with a dark tunnel and a little pair of eyes. -->
+  <path d="M4 56 C10 26, 54 26, 60 56 Z" fill="#b4552d"/>
+  <path d="M18 56 C20 38, 44 38, 46 56 Z" fill="#2b2520"/>
+  <circle cx="28" cy="47" r="2.6" fill="#f6f3ee"/>
+  <circle cx="36" cy="47" r="2.6" fill="#f6f3ee"/>
+</svg>

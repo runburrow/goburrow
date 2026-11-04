@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · Burrow</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/static/favicon.svg" alt="" width="22" height="22"> Burrow</a>
+  {{if .Session}}
+  <nav>
+    <a href="/">Projects</a>
+    <span class="muted">{{.Session.User.Email}}</span>
+    <form method="post" action="/logout" class="inline">
+      <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+      <button class="link">Log out</button>
+    </form>
+  </nav>
+  {{end}}
+</header>
+<main>
+{{template "content" .}}
+</main>
+<footer class="muted">Burrow {{.Version}} · open-source error tracking</footer>
+</body>
+</html>

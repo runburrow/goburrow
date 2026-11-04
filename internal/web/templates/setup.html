@@ -1,0 +1,13 @@
+{{define "content"}}
+<section class="card narrow">
+  <h1>Welcome to Burrow 🦡</h1>
+  <p class="muted">Create the admin account to get started. This page disappears once an account exists.</p>
+  {{with .Data.Error}}<p class="alert error">{{.}}</p>{{end}}
+  <form method="post" action="/setup" class="stack">
+    <label>Email <input type="email" name="email" value="{{.Data.Email}}" required autofocus autocomplete="username"></label>
+    <label>Password <input type="password" name="password" minlength="10" maxlength="72" required autocomplete="new-password"></label>
+    <label>Confirm password <input type="password" name="password2" minlength="10" maxlength="72" required autocomplete="new-password"></label>
+    <button class="primary">Create account</button>
+  </form>
+</section>
+{{end}}

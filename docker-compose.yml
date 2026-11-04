@@ -1,0 +1,17 @@
+services:
+  burrow:
+    build: .
+    image: burrow:local
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # The URL your apps and browser will use to reach Burrow. It goes into DSNs.
+      BURROW_BASE_URL: http://localhost:8000
+      BURROW_RETENTION_DAYS: "30"
+      # BURROW_WEBHOOK_URL: https://hooks.slack.com/services/...
+    volumes:
+      - burrow-data:/data
+
+volumes:
+  burrow-data:

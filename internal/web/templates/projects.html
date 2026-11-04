@@ -1,0 +1,20 @@
+{{define "content"}}
+<div class="pagehead">
+  <h1>Projects</h1>
+  <a class="button primary" href="/projects/new">+ New project</a>
+</div>
+<div class="list">
+{{range .Data}}
+  <a class="row project-row" href="/projects/{{.Slug}}">
+    <div>
+      <strong>{{.Name}}</strong>
+      <span class="pill">{{if .Platform}}{{.Platform}}{{else}}other{{end}}</span>
+    </div>
+    <div class="row-meta">
+      <span class="{{if .UnresolvedCount}}count-hot{{else}}muted{{end}}">{{.UnresolvedCount}} unresolved</span>
+      <span class="muted">last event {{ago .LastSeen}}</span>
+    </div>
+  </a>
+{{end}}
+</div>
+{{end}}
