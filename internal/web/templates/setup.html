@@ -1,12 +1,15 @@
 {{define "content"}}
 <section class="card narrow">
-  <h1>Welcome to Burrow 🦡</h1>
-  <p class="muted">Create the admin account to get started. This page disappears once an account exists.</p>
-  {{with .Data.Error}}<p class="alert error">{{.}}</p>{{end}}
+  <h1>Set up Burrow</h1>
+  <p class="muted">Create the first account. It becomes the instance admin, and this page goes away once it exists.</p>
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/setup" class="stack">
     <label>Email <input type="email" name="email" value="{{.Data.Email}}" required autofocus autocomplete="username"></label>
-    <label>Password <input type="password" name="password" minlength="10" maxlength="72" required autocomplete="new-password"></label>
+    <label>Password <span class="hint">At least 10 characters.</span>
+      <input type="password" name="password" minlength="10" maxlength="72" required autocomplete="new-password"></label>
     <label>Confirm password <input type="password" name="password2" minlength="10" maxlength="72" required autocomplete="new-password"></label>
+    <label>Team name <span class="hint">Projects belong to teams. You can rename it or add more later.</span>
+      <input name="team" value="{{.Data.Team}}" placeholder="My team" maxlength="100"></label>
     <button class="primary">Create account</button>
   </form>
 </section>

@@ -11,11 +11,19 @@ These are rough priorities, not promises.
 - [x] Single admin user, projects with DSNs, key rotation
 - [x] Webhook alerts, retention pruning, Docker image, CI
 
+## v0.2
+- [x] **Teams**: projects belong to teams, with owner/member roles and instance admins
+- [x] **Invite links**: single-use, expiring, hashed, optionally email-locked
+- [x] Account page (change password, which ends other sessions) and admin user management
+- [x] **Login throttling** (per account and per IP)
+- [x] Accessibility pass: WCAG AA contrast, keyboard focus, axe-core clean
+
 ## Next up
-- [ ] **Multiple users & invites** (the schema already supports many users; this needs UI and roles)
 - [ ] **Ingest rate limiting** per project (respond with `429` + `X-Sentry-Rate-Limits` so SDKs back off)
-- [ ] **Login throttling** against brute force
-- [ ] **Email alerts** (SMTP) and per-project alert rules (env filters, "only regressions", etc.)
+- [ ] **Email**: SMTP for alerts and for sending invites directly
+- [ ] **Per-team webhooks** (the webhook is currently instance-wide)
+- [ ] **SSO**: OIDC login (GitHub, Google, Authentik, Keycloak…)
+- [ ] **Email alerts** and per-project alert rules (env filters, "only regressions", etc.)
 - [ ] **Tag facets** on the issue page (e.g. "80% of events: browser=Safari")
 - [ ] **Source maps** for minified JavaScript stack traces
 - [ ] **Merge / unmerge issues** manually

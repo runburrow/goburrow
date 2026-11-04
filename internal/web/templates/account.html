@@ -1,0 +1,18 @@
+{{define "content"}}
+<section class="card narrow">
+  <h1>Your account</h1>
+  <p class="muted">{{.Session.User.Email}}{{if .Session.User.IsAdmin}} · <span class="pill admin">admin</span>{{end}}</p>
+  {{if eq .Flash "password"}}<p class="alert ok" role="status">Password changed. You've been logged out everywhere else.</p>{{end}}
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  <h2>Change password</h2>
+  <form method="post" action="/account/password" class="stack">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <input type="hidden" name="username" value="{{.Session.User.Email}}" autocomplete="username">
+    <label>Current password <input type="password" name="current" required autocomplete="current-password"></label>
+    <label>New password <span class="hint">At least 10 characters. Changing it logs out your other sessions.</span>
+      <input type="password" name="password" minlength="10" maxlength="72" required autocomplete="new-password"></label>
+    <label>Confirm new password <input type="password" name="password2" minlength="10" maxlength="72" required autocomplete="new-password"></label>
+    <button class="primary">Change password</button>
+  </form>
+</section>
+{{end}}

@@ -4,17 +4,19 @@
   <h1>{{$p.Name}}</h1>
   <a class="button" href="/projects/{{$p.Slug}}/settings">Settings &amp; DSN</a>
 </div>
-{{if eq .Flash "test-sent"}}<p class="alert ok">Test event sent! It should be at the top of the list.</p>{{end}}
+{{if eq .Flash "test-sent"}}<p class="alert ok" role="status">Test event sent. It's at the top of the list.</p>{{end}}
 
-<form class="filters" method="get" action="/projects/{{$p.Slug}}">
-  <div class="tabs">
+<form class="filters" method="get" action="/projects/{{$p.Slug}}" role="search">
+  <nav class="tabs" aria-label="Issue status">
     {{range $s := (list "unresolved" "resolved" "ignored" "all")}}
-    <a class="tab {{if eq $s $.Data.Status}}active{{end}}" href="/projects/{{$p.Slug}}?status={{$s}}{{with $.Data.Query}}&q={{.}}{{end}}{{with $.Data.Sort}}&sort={{.}}{{end}}">{{$s}}</a>
+    <a class="tab" {{if eq $s $.Data.Status}}aria-current="page"{{end}} href="/projects/{{$p.Slug}}?status={{$s}}{{with $.Data.Query}}&q={{.}}{{end}}{{with $.Data.Sort}}&sort={{.}}{{end}}">{{$s}}</a>
     {{end}}
-  </div>
+  </nav>
   <input type="hidden" name="status" value="{{.Data.Status}}">
-  <input type="search" name="q" value="{{.Data.Query}}" placeholder="Search title or culprit…">
-  <select name="sort" data-autosubmit>
+  <label class="sr-only" for="q">Search issues</label>
+  <input id="q" type="search" name="q" value="{{.Data.Query}}" placeholder="Search title or culprit">
+  <label class="sr-only" for="sort">Sort by</label>
+  <select id="sort" name="sort" data-autosubmit>
     <option value="" {{if eq .Data.Sort ""}}selected{{end}}>Last seen</option>
     <option value="first_seen" {{if eq .Data.Sort "first_seen"}}selected{{end}}>First seen</option>
     <option value="times_seen" {{if eq .Data.Sort "times_seen"}}selected{{end}}>Most events</option>
@@ -24,35 +26,35 @@
 
 <div class="list">
 {{range .Data.Issues}}
-  <a class="row issue-row" href="/issues/{{.ID}}">
-    <span class="level level-{{.Level}}" title="{{.Level}}"></span>
-    <div class="issue-main">
-      <div class="issue-title">{{.Title}}</div>
-      <div class="muted small mono">{{.Culprit}}</div>
+  <a class="row" href="/issues/{{.ID}}">
+    <span class="level level-{{.Level}}" aria-hidden="true"></span>
+    <div class="row-main">
+      <div class="row-title">{{.Title}}</div>
+      <div class="row-sub"><span class="lvl lvl-{{.Level}}">{{.Level}}</span>{{with .Culprit}} · <span class="mono">{{.}}</span>{{end}}</div>
     </div>
+    {{if ne .Status "unresolved"}}<span class="pill status-{{.Status}}">{{.Status}}</span>{{end}}
     <div class="issue-stats">
-      <span class="count">{{.TimesSeen}}</span>
-      <span class="muted small" title="{{datetime .LastSeen}}">{{ago .LastSeen}}</span>
-      <span class="muted small" title="first seen {{datetime .FirstSeen}}">since {{ago .FirstSeen}}</span>
+      <span class="count">{{.TimesSeen}} <span class="sr-only">{{plural .TimesSeen "event" "events"}}</span></span>
+      <span title="{{datetime .LastSeen}}">{{ago .LastSeen}}</span>
+      <span class="hide-sm" title="first seen {{datetime .FirstSeen}}">since {{ago .FirstSeen}}</span>
     </div>
-    {{if ne .Status "unresolved"}}<span class="pill">{{.Status}}</span>{{end}}
   </a>
 {{else}}
   <div class="empty">
     {{if .Data.Query}}
       <p>No issues match “{{.Data.Query}}”.</p>
     {{else if eq .Data.Status "unresolved"}}
-      <p class="big">🦡 All clear, nothing unresolved.</p>
-      <p class="muted">Haven't wired up an SDK yet? Grab the DSN from <a href="/projects/{{$p.Slug}}/settings">settings</a> or send a test event.</p>
+      <p class="big">Nothing unresolved.</p>
+      <p class="muted">Haven't connected an SDK yet? Get the DSN from <a href="/projects/{{$p.Slug}}/settings">settings</a>, or send a test event from there.</p>
     {{else}}
-      <p>Nothing here.</p>
+      <p>No {{.Data.Status}} issues.</p>
     {{end}}
   </div>
 {{end}}
 </div>
 
 {{if or .Data.PrevURL .Data.NextURL}}
-<nav class="pager">
+<nav class="pager" aria-label="Pagination">
   {{with .Data.PrevURL}}<a class="button" href="{{.}}">← Newer</a>{{end}}
   <span class="muted">Page {{.Data.Page}}</span>
   {{with .Data.NextURL}}<a class="button" href="{{.}}">Older →</a>{{end}}

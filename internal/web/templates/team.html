@@ -1,0 +1,130 @@
+{{define "content"}}
+{{$t := .Data.Team}}{{$csrf := .Session.CSRF}}{{$me := .Data.Me}}{{$manage := .Data.CanManage}}
+<div class="pagehead">
+  <h1><span class="eyebrow"><a href="/teams">Teams</a></span>{{$t.Name}}</h1>
+</div>
+{{if eq .Flash "joined"}}<p class="alert ok" role="status">Welcome to {{$t.Name}}.</p>{{end}}
+{{if eq .Flash "renamed"}}<p class="alert ok" role="status">Team renamed.</p>{{end}}
+{{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+
+{{with .Data.InviteURL}}
+<div class="invite-link" role="status">
+  <strong>Invite link created.</strong> Copy it now. For security it won't be shown again.
+  It works once and expires in {{$.Data.InviteTTL}} days.
+  <div class="copybox"><code id="invite-url">{{.}}</code><button type="button" class="small" data-copy="#invite-url">Copy</button></div>
+</div>
+{{end}}
+
+<section class="section">
+  <div class="section-head">
+    <h2>Projects</h2>
+    {{if $manage}}<a class="button small" href="/projects/new?team={{$t.Slug}}">New project</a>{{end}}
+  </div>
+  {{if .Data.Projects}}
+  <div class="list">
+    {{range .Data.Projects}}
+    <a class="row" href="/projects/{{.Slug}}">
+      <div class="row-main"><div class="row-title">{{.Name}}</div><div class="row-sub">{{.Platform}}</div></div>
+      <div class="row-meta"><span class="{{if .UnresolvedCount}}count-hot{{end}}">{{.UnresolvedCount}} unresolved</span></div>
+    </a>
+    {{end}}
+  </div>
+  {{else}}<p class="muted">No projects yet.</p>{{end}}
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Members</h2><span class="muted small">{{len .Data.Members}} total</span></div>
+  <table class="data-table">
+    <thead><tr><th>Email</th><th class="hide-sm">Joined</th><th>Role</th><th><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+    {{range .Data.Members}}
+      <tr>
+        <td>{{.User.Email}}{{if eq .User.ID $me}} <span class="muted">(you)</span>{{end}}</td>
+        <td class="hide-sm muted">{{ago .JoinedAt}}</td>
+        <td>
+          {{if $manage}}
+          <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/role" class="row-form">
+            <input type="hidden" name="csrf" value="{{$csrf}}">
+            <label class="sr-only" for="role-{{.User.ID}}">Role for {{.User.Email}}</label>
+            <select id="role-{{.User.ID}}" name="role" data-autosubmit>
+              <option value="member" {{if eq .Role "member"}}selected{{end}}>member</option>
+              <option value="owner" {{if eq .Role "owner"}}selected{{end}}>owner</option>
+            </select>
+            <noscript><button class="small">Save</button></noscript>
+          </form>
+          {{else}}<span class="pill {{.Role}}">{{.Role}}</span>{{end}}
+        </td>
+        <td class="actions">
+          {{if eq .User.ID $me}}
+          <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/remove" data-confirm="Leave {{$t.Name}}? You'll lose access to its projects.">
+            <input type="hidden" name="csrf" value="{{$csrf}}"><button class="small">Leave</button>
+          </form>
+          {{else if $manage}}
+          <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/remove" data-confirm="Remove {{.User.Email}} from {{$t.Name}}?">
+            <input type="hidden" name="csrf" value="{{$csrf}}"><button class="small destructive">Remove</button>
+          </form>
+          {{end}}
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  <p class="muted small">Members can view issues and triage them. Owners can also manage members, invites, and projects.</p>
+</section>
+
+{{if $manage}}
+<section class="section">
+  <div class="section-head"><h2>Invite someone</h2></div>
+  <form method="post" action="/teams/{{$t.Slug}}/invites" class="row-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label class="field">Email <span class="hint">Optional. If set, only this address can use the link.</span>
+      <input type="email" name="email" placeholder="otter@example.com"></label>
+    <label class="field shrink">Role
+      <select name="role"><option value="member">member</option><option value="owner">owner</option></select></label>
+    <button class="primary">Create invite link</button>
+  </form>
+
+  {{if .Data.Invites}}
+  <h3 class="group-label">Pending invites</h3>
+  <table class="data-table">
+    <thead><tr><th>For</th><th>Role</th><th class="hide-sm">Created by</th><th>Expires</th><th><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+    {{range .Data.Invites}}
+      <tr>
+        <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">anyone with the link</span>{{end}}</td>
+        <td>{{.Role}}</td>
+        <td class="hide-sm muted">{{if .CreatedBy}}{{.CreatedBy}}{{else}}deleted user{{end}}</td>
+        <td class="muted" title="{{datetime .ExpiresAt}}">{{until .ExpiresAt}}</td>
+        <td class="actions">
+          <form method="post" action="/teams/{{$t.Slug}}/invites/{{.ID}}/revoke">
+            <input type="hidden" name="csrf" value="{{$csrf}}"><button class="small">Revoke</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{end}}
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Team settings</h2></div>
+  <form method="post" action="/teams/{{$t.Slug}}/rename" class="row-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label class="field">Name <input name="name" value="{{$t.Name}}" required maxlength="100"></label>
+    <button>Rename</button>
+  </form>
+</section>
+
+<section class="card danger">
+  <h2>Delete team</h2>
+  {{$n := len .Data.Projects}}
+  <p>This deletes the team{{if eq $n 1}} <strong>and its project</strong>, with every issue and event in it{{else if gt $n 1}} <strong>and all {{$n}} of its projects</strong>, with every issue and event in them{{end}}. It can't be undone.</p>
+  <form method="post" action="/teams/{{$t.Slug}}/delete" class="row-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label class="field"><span>Type <code>{{$t.Slug}}</code> to confirm</span> <input name="confirm" autocomplete="off"></label>
+    <button class="destructive">Delete team</button>
+  </form>
+</section>
+{{end}}
+{{end}}

@@ -1,11 +1,17 @@
 {{define "content"}}
 <section class="card narrow">
   <h1>New project</h1>
-  <p class="muted">A project is one app or service. Each gets its own DSN.</p>
-  {{with .Data.Error}}<p class="alert error">{{.}}</p>{{end}}
+  <p class="muted">A project is one app or service. It gets its own DSN.</p>
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  {{if .Data.Teams}}
   <form method="post" action="/projects/new" class="stack">
     <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-    <label>Name <input name="name" required maxlength="100" placeholder="my-web-app" autofocus></label>
+    <label>Name <input name="name" required maxlength="100" placeholder="checkout-api" autofocus></label>
+    <label>Team
+      <select name="team">
+        {{range .Data.Teams}}<option value="{{.Slug}}" {{if eq .Slug $.Data.Selected}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
     <label>Platform
       <select name="platform">
         {{range .Data.Platforms}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
@@ -13,5 +19,8 @@
     </label>
     <button class="primary">Create project</button>
   </form>
+  {{else}}
+  <p>Only team owners can create projects. <a href="/teams/new">Start your own team</a>, or ask an owner of an existing one.</p>
+  {{end}}
 </section>
 {{end}}

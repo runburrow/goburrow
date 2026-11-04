@@ -4,27 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · Burrow</title>
+<link rel="preload" href="/static/fonts/atkinson-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/style.css">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <script src="/static/app.js" defer></script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="topbar">
   <a class="brand" href="/"><img src="/static/favicon.svg" alt="" width="22" height="22"> Burrow</a>
   {{if .Session}}
-  <nav>
-    <a href="/">Projects</a>
-    <span class="muted">{{.Session.User.Email}}</span>
-    <form method="post" action="/logout" class="inline">
-      <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-      <button class="link">Log out</button>
-    </form>
+  <nav aria-label="Main">
+    <a href="/" {{if eq .Section "projects"}}aria-current="page"{{end}}>Projects</a>
+    <a href="/teams" {{if eq .Section "teams"}}aria-current="page"{{end}}>Teams</a>
+    {{if .Session.User.IsAdmin}}<a href="/admin/users" {{if eq .Section "admin"}}aria-current="page"{{end}}>Users</a>{{end}}
+    <span class="me">
+      <a href="/account" {{if eq .Section "account"}}aria-current="page"{{end}}><span class="email">{{.Session.User.Email}}</span><span class="account-short">Account</span></a>
+      <form method="post" action="/logout" class="inline">
+        <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+        <button class="link">Log out</button>
+      </form>
+    </span>
   </nav>
   {{end}}
 </header>
-<main>
+<main id="main" tabindex="-1">
 {{template "content" .}}
 </main>
-<footer class="muted">Burrow {{.Version}} · open-source error tracking</footer>
+<footer>Burrow {{.Version}} · open-source error tracking</footer>
 </body>
 </html>

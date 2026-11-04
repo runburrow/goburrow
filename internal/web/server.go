@@ -36,7 +36,8 @@ type Server struct {
 	BaseURL *url.URL // public URL, used to build DSNs and secure cookies
 	Version string
 
-	pages map[string]*template.Template
+	pages  map[string]*template.Template
+	logins *throttle
 }
 
 // Handler builds the full HTTP handler: ingestion API + dashboard.
@@ -44,6 +45,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
+	s.logins = newThrottle(15 * time.Minute)
 	mux := http.NewServeMux()
 	s.Ingest.Register(mux)
 
@@ -68,6 +70,27 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("GET /issues/{id}", s.authed(s.issueDetail))
 	mux.HandleFunc("POST /issues/{id}/status", s.authed(s.issueSetStatus))
 	mux.HandleFunc("POST /issues/{id}/delete", s.authed(s.issueDelete))
+
+	mux.HandleFunc("GET /teams", s.authed(s.teamList))
+	mux.HandleFunc("GET /teams/new", s.authed(s.teamNewPage))
+	mux.HandleFunc("POST /teams/new", s.authed(s.teamCreate))
+	mux.HandleFunc("GET /teams/{team}", s.authed(s.teamDetail))
+	mux.HandleFunc("POST /teams/{team}/rename", s.authed(s.teamRename))
+	mux.HandleFunc("POST /teams/{team}/delete", s.authed(s.teamDelete))
+	mux.HandleFunc("POST /teams/{team}/members/{user}/role", s.authed(s.memberRole))
+	mux.HandleFunc("POST /teams/{team}/members/{user}/remove", s.authed(s.memberRemove))
+	mux.HandleFunc("POST /teams/{team}/invites", s.authed(s.inviteCreate))
+	mux.HandleFunc("POST /teams/{team}/invites/{invite}/revoke", s.authed(s.inviteRevoke))
+
+	mux.HandleFunc("GET /invite/{token}", s.optionalAuth(s.invitePage))
+	mux.HandleFunc("POST /invite/{token}", s.optionalAuth(s.inviteAccept))
+
+	mux.HandleFunc("GET /account", s.authed(s.accountPage))
+	mux.HandleFunc("POST /account/password", s.authed(s.accountPassword))
+
+	mux.HandleFunc("GET /admin/users", s.authed(s.adminOnly(s.adminUsers)))
+	mux.HandleFunc("POST /admin/users/{user}/admin", s.authed(s.adminOnly(s.adminSetAdmin)))
+	mux.HandleFunc("POST /admin/users/{user}/delete", s.authed(s.adminOnly(s.adminDeleteUser)))
 
 	return s.securityHeaders(mux), nil
 }
@@ -94,6 +117,7 @@ func (s *Server) loadTemplates() error {
 
 // pageData is what every template receives.
 type pageData struct {
+	Section string // top-nav section to mark as current
 	Title   string
 	Session *store.Session
 	Version string
@@ -107,7 +131,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 		http.Error(w, "unknown page "+page, http.StatusInternalServerError)
 		return
 	}
-	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Data: data, Flash: r.URL.Query().Get("flash")}
+	pd := pageData{Section: navSection(r.URL.Path), Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Data: data, Flash: r.URL.Query().Get("flash")}
 	var buf strings.Builder
 	if err := t.ExecuteTemplate(&buf, "layout.html", pd); err != nil {
 		s.Log.Error("render", "page", page, "err", err)
@@ -117,6 +141,20 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(code)
 	_, _ = w.Write([]byte(buf.String()))
+}
+
+func navSection(path string) string {
+	switch {
+	case strings.HasPrefix(path, "/teams"):
+		return "teams"
+	case strings.HasPrefix(path, "/admin"):
+		return "admin"
+	case strings.HasPrefix(path, "/account"):
+		return "account"
+	case path == "/" || strings.HasPrefix(path, "/projects") || strings.HasPrefix(path, "/issues"):
+		return "projects"
+	}
+	return ""
 }
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
@@ -171,6 +209,32 @@ func (s *Server) authed(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, sess)))
+	}
+}
+
+// optionalAuth loads the session if there is one (enforcing CSRF on its
+// POSTs) and otherwise falls back to the same-origin check used by the
+// login form. Used by invite links, which work signed in or out.
+func (s *Server) optionalAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var sess *store.Session
+		if c, err := r.Cookie(sessionCookie); err == nil {
+			sess, err = s.Store.SessionByToken(r.Context(), c.Value)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				s.serverError(w, r, err)
+				return
+			}
+		}
+		if r.Method == http.MethodPost {
+			if !s.originOK(r) || (sess != nil && !constantTimeEq(r.PostFormValue("csrf"), sess.CSRF)) {
+				http.Error(w, "invalid CSRF token. Reload the page and try again.", http.StatusForbidden)
+				return
+			}
+		}
+		if sess != nil {
+			r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, sess))
+		}
+		next(w, r)
 	}
 }
 

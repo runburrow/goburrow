@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
 )
 
@@ -22,14 +21,10 @@ func (s *Server) setupPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	s.render(w, r, http.StatusOK, "setup", "Welcome to Burrow", map[string]string{})
+	s.render(w, r, http.StatusOK, "setup", "Set up Burrow", map[string]string{})
 }
 
 func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
-	// Only the very first account can be created this way. There's a small
-	// race if two people submit setup simultaneously; the UNIQUE email and
-	// the count check make the worst case "two admins", which is acceptable
-	// for a first-run screen.
 	if n, err := s.Store.UserCount(r.Context()); err != nil {
 		s.serverError(w, r, err)
 		return
@@ -37,14 +32,17 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "setup already completed", http.StatusForbidden)
 		return
 	}
-	email, pw, pw2 := r.PostFormValue("email"), r.PostFormValue("password"), r.PostFormValue("password2")
+	email, pw, pw2, team := r.PostFormValue("email"), r.PostFormValue("password"), r.PostFormValue("password2"), r.PostFormValue("team")
+	fail := func(code int, msg string) {
+		s.render(w, r, code, "setup", "Set up Burrow", map[string]string{"Error": msg, "Email": email, "Team": team})
+	}
 	if pw != pw2 {
-		s.render(w, r, http.StatusBadRequest, "setup", "Welcome to Burrow", map[string]string{"Error": "Passwords don't match.", "Email": email})
+		fail(http.StatusBadRequest, "The passwords don't match.")
 		return
 	}
-	u, err := s.Store.CreateUser(r.Context(), email, pw)
+	u, err := s.Store.Setup(r.Context(), email, pw, team)
 	if err != nil {
-		s.render(w, r, http.StatusBadRequest, "setup", "Welcome to Burrow", map[string]string{"Error": err.Error(), "Email": email})
+		fail(http.StatusBadRequest, err.Error())
 		return
 	}
 	s.startSession(w, r, u.ID, "/projects/new")
@@ -61,14 +59,25 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	email := r.PostFormValue("email")
 	next := r.PostFormValue("next")
+	fail := func(code int, msg string) {
+		s.render(w, r, code, "login", "Log in", map[string]string{"Error": msg, "Email": email, "Next": next})
+	}
+	ek, ik := emailKey(email), "ip:"+clientIP(r)
+	if s.logins.blocked(ek, loginLimitPerEmail) || s.logins.blocked(ik, loginLimitPerIP) {
+		fail(http.StatusTooManyRequests, "Too many failed attempts. Wait 15 minutes and try again.")
+		return
+	}
 	u, err := s.Store.Authenticate(r.Context(), email, r.PostFormValue("password"))
 	if errors.Is(err, store.ErrBadCredentials) {
-		s.render(w, r, http.StatusUnauthorized, "login", "Log in", map[string]string{"Error": err.Error(), "Email": email, "Next": next})
+		s.logins.fail(ek)
+		s.logins.fail(ik)
+		fail(http.StatusUnauthorized, "That email and password don't match an account.")
 		return
 	} else if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
+	s.logins.clear(ek)
 	s.startSession(w, r, u.ID, safeNext(next))
 }
 
@@ -101,16 +110,38 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- projects
 
 func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
-	projects, err := s.Store.ListProjects(r.Context())
+	sess := sessionFrom(r.Context())
+	projects, err := s.Store.ListProjects(r.Context(), sess.User.ID, sess.User.IsAdmin, 0)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	if len(projects) == 0 {
+	teams, err := s.creatableTeams(r)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if len(projects) == 0 && len(teams) > 0 {
 		http.Redirect(w, r, "/projects/new", http.StatusSeeOther)
 		return
 	}
-	s.render(w, r, http.StatusOK, "projects", "Projects", projects)
+	// Group by team so a multi-team user sees structure, not a flat pile.
+	type group struct {
+		Team     string
+		Projects []*store.Project
+	}
+	var groups []group
+	for _, p := range projects {
+		if len(groups) == 0 || groups[len(groups)-1].Team != p.TeamName {
+			groups = append(groups, group{Team: p.TeamName})
+		}
+		groups[len(groups)-1].Projects = append(groups[len(groups)-1].Projects, p)
+	}
+	s.render(w, r, http.StatusOK, "projects", "Projects", map[string]any{
+		"Groups":    groups,
+		"CanCreate": len(teams) > 0,
+		"MultiTeam": len(groups) > 1,
+	})
 }
 
 var platforms = []struct{ ID, Name string }{
@@ -126,18 +157,61 @@ var platforms = []struct{ ID, Name string }{
 	{"other", "Other"},
 }
 
+// creatableTeams lists the teams the current user may create projects in.
+func (s *Server) creatableTeams(r *http.Request) ([]*store.Team, error) {
+	sess := sessionFrom(r.Context())
+	all, err := s.Store.ListTeams(r.Context(), sess.User.ID, sess.User.IsAdmin)
+	if err != nil {
+		return nil, err
+	}
+	var out []*store.Team
+	for _, t := range all {
+		if sess.User.IsAdmin || t.MyRole == store.RoleOwner {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
 func (s *Server) projectNewPage(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, http.StatusOK, "project_new", "New project", map[string]any{"Platforms": platforms})
+	s.renderProjectNew(w, r, http.StatusOK, "")
+}
+
+func (s *Server) renderProjectNew(w http.ResponseWriter, r *http.Request, code int, msg string) {
+	teams, err := s.creatableTeams(r)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.render(w, r, code, "project_new", "New project", map[string]any{
+		"Platforms": platforms, "Teams": teams, "Error": msg, "Selected": r.FormValue("team"),
+	})
 }
 
 func (s *Server) projectCreate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	platform := r.PostFormValue("platform")
 	if name == "" || len(name) > 100 {
-		s.render(w, r, http.StatusBadRequest, "project_new", "New project", map[string]any{"Platforms": platforms, "Error": "Name is required (max 100 characters)."})
+		s.renderProjectNew(w, r, http.StatusBadRequest, "Give the project a name (100 characters max).")
 		return
 	}
-	p, err := s.Store.CreateProject(r.Context(), name, platform)
+	team, err := s.Store.TeamBySlug(r.Context(), r.PostFormValue("team"))
+	if errors.Is(err, store.ErrNotFound) {
+		s.renderProjectNew(w, r, http.StatusBadRequest, "Pick a team for the project.")
+		return
+	} else if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	a, err := s.teamAccess(r, team.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if !s.require(w, r, a, accessOwner) {
+		return
+	}
+	p, err := s.Store.CreateProject(r.Context(), team.ID, name, platform)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -145,31 +219,26 @@ func (s *Server) projectCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/projects/"+p.Slug+"/settings?flash=created", http.StatusSeeOther)
 }
 
-func (s *Server) loadProject(w http.ResponseWriter, r *http.Request) (*store.Project, bool) {
-	p, err := s.Store.ProjectBySlug(r.Context(), r.PathValue("slug"))
-	if errors.Is(err, store.ErrNotFound) {
-		s.notFound(w, r)
-		return nil, false
-	} else if err != nil {
-		s.serverError(w, r, err)
-		return nil, false
-	}
-	return p, true
-}
-
 func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, a, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
-	s.render(w, r, http.StatusOK, "project_settings", p.Name+" · Settings", map[string]any{
-		"Project": p,
-		"DSN":     s.DSN(p),
+	team, err := s.Store.TeamByID(r.Context(), p.TeamID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.render(w, r, http.StatusOK, "project_settings", p.Name+" settings", map[string]any{
+		"Project":   p,
+		"Team":      team,
+		"DSN":       s.DSN(p),
+		"CanManage": a >= accessOwner,
 	})
 }
 
 func (s *Server) projectTestEvent(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -181,7 +250,7 @@ func (s *Server) projectTestEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) projectRotateKey(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessOwner)
 	if !ok {
 		return
 	}
@@ -193,7 +262,7 @@ func (s *Server) projectRotateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) projectDelete(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessOwner)
 	if !ok {
 		return
 	}
@@ -213,7 +282,7 @@ func (s *Server) projectDelete(w http.ResponseWriter, r *http.Request) {
 const issuesPerPage = 50
 
 func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, a, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -263,12 +332,13 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 		return "/projects/" + p.Slug + "?" + v.Encode()
 	}
 	data := map[string]any{
-		"Project": p,
-		"Issues":  issues,
-		"Status":  statusParam,
-		"Query":   q.Get("q"),
-		"Sort":    sort,
-		"Page":    page,
+		"Project":   p,
+		"Issues":    issues,
+		"Status":    statusParam,
+		"Query":     q.Get("q"),
+		"Sort":      sort,
+		"Page":      page,
+		"CanManage": a >= accessOwner,
 	}
 	if hasNext {
 		data["NextURL"] = pageURL(page + 1)
@@ -279,30 +349,8 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "issues", p.Name, data)
 }
 
-func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request) (*store.Issue, *store.Project, bool) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		s.notFound(w, r)
-		return nil, nil, false
-	}
-	issue, err := s.Store.IssueByID(r.Context(), id)
-	if errors.Is(err, store.ErrNotFound) {
-		s.notFound(w, r)
-		return nil, nil, false
-	} else if err != nil {
-		s.serverError(w, r, err)
-		return nil, nil, false
-	}
-	p, err := s.Store.ProjectByID(r.Context(), issue.ProjectID)
-	if err != nil {
-		s.serverError(w, r, err)
-		return nil, nil, false
-	}
-	return issue, p, true
-}
-
 func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
-	issue, p, ok := s.loadIssue(w, r)
+	issue, p, a, ok := s.loadIssue(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -314,7 +362,7 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	data := map[string]any{"Issue": issue, "Project": p, "Stored": se}
+	data := map[string]any{"Issue": issue, "Project": p, "Stored": se, "CanManage": a >= accessOwner}
 	if se != nil {
 		older, newer, err := s.Store.AdjacentEvents(r.Context(), se)
 		if err != nil {
@@ -340,7 +388,7 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) issueSetStatus(w http.ResponseWriter, r *http.Request) {
-	issue, _, ok := s.loadIssue(w, r)
+	issue, _, _, ok := s.loadIssue(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -357,7 +405,7 @@ func (s *Server) issueSetStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) issueDelete(w http.ResponseWriter, r *http.Request) {
-	issue, p, ok := s.loadIssue(w, r)
+	issue, p, _, ok := s.loadIssue(w, r, accessOwner)
 	if !ok {
 		return
 	}
@@ -366,52 +414,4 @@ func (s *Server) issueDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/projects/"+p.Slug, http.StatusSeeOther)
-}
-
-// sampleEvent is what "Send test event" ingests: realistic enough to show
-// off every panel of the issue page.
-func sampleEvent() *event.Event {
-	yes, no := true, false
-	now := time.Now().UTC()
-	return &event.Event{
-		EventID:     event.NewEventID(),
-		Timestamp:   now,
-		Platform:    "python",
-		Level:       "error",
-		Environment: "production",
-		Release:     "burrow-demo@1.0.0",
-		ServerName:  "demo-host-1",
-		Transaction: "POST /api/checkout",
-		Exceptions: []event.Exception{{
-			Type:      "ZeroDivisionError",
-			Value:     "division by zero",
-			Module:    "builtins",
-			Mechanism: &event.Mechanism{Type: "generic", Handled: &no},
-			Stacktrace: &event.Stacktrace{Frames: []event.Frame{
-				{Filename: "flask/app.py", Function: "dispatch_request", Lineno: 1469, Module: "flask.app", InApp: &no,
-					ContextLine: "        return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)"},
-				{Filename: "shop/views.py", Function: "checkout", Lineno: 42, Module: "shop.views", InApp: &yes,
-					PreContext:  []string{"@app.post(\"/api/checkout\")", "def checkout():", "    cart = load_cart(request.user)"},
-					ContextLine: "    per_item = cart.total / cart.item_count",
-					PostContext: []string{"    return charge(cart, per_item)", ""},
-					Vars:        map[string]any{"cart": "<Cart id=1337 items=0>"}},
-			}},
-		}},
-		Breadcrumbs: []event.Breadcrumb{
-			{Timestamp: now.Add(-3 * time.Second), Category: "navigation", Message: "/cart -> /checkout", Level: "info"},
-			{Timestamp: now.Add(-2 * time.Second), Category: "http", Type: "http", Level: "info", Data: map[string]any{"method": "POST", "url": "/api/checkout", "status_code": 500}},
-			{Timestamp: now.Add(-1 * time.Second), Category: "query", Message: "SELECT * FROM cart_items WHERE cart_id = 1337", Level: "info"},
-		},
-		Tags: []event.Tag{{Key: "browser", Value: "Firefox 132"}, {Key: "os", Value: "Linux"}, {Key: "burrow.test", Value: "true"}},
-		User: map[string]any{"id": "42", "email": "fox@example.com", "ip_address": "203.0.113.7"},
-		Request: map[string]any{
-			"method": "POST", "url": "https://shop.example.com/api/checkout",
-			"headers": map[string]any{"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Firefox/132.0"},
-		},
-		Contexts: map[string]any{
-			"runtime": map[string]any{"name": "CPython", "version": "3.13.0"},
-			"os":      map[string]any{"name": "Linux", "version": "6.8"},
-		},
-		SDK: &event.SDK{Name: "burrow.test-event", Version: "1"},
-	}
 }

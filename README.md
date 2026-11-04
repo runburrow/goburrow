@@ -21,6 +21,10 @@ traces, breadcrumbs, tags and user context.
   JS bundle hashes, and the volatile parts of messages (numbers, UUIDs, IPs, hex,
   timestamps, quoted values) are ignored, so `timed out after 3000ms` and `timed out after
   4521ms` land in the same issue. SDK-side `fingerprint` (including `{{ default }}`) is honored.
+- **Teams & access control.** Projects belong to teams, and people only see their teams'
+  projects. **Owners** manage members, invites, and projects. **Members** view and triage.
+  **Instance admins** manage everyone. Invite links are single-use, expire in 7 days, are
+  stored hashed, and can be locked to an email address.
 - **Issue workflow.** Resolve, ignore, or delete issues. A resolved issue that happens again
   **reopens automatically** (regression).
 - **Event detail.** Chained exceptions, stack frames with source context and locals,
@@ -29,8 +33,13 @@ traces, breadcrumbs, tags and user context.
   Discord, Mattermost, or any custom endpoint.
 - **Idempotent ingestion.** SDK retries never double-count.
 - **Retention.** Old events are pruned automatically (30 days by default).
-- **Secure defaults.** bcrypt passwords, CSRF tokens, a strict CSP, SameSite cookies, and a
-  non-root distroless container.
+- **Secure defaults.** bcrypt passwords, login throttling, CSRF tokens, a strict CSP,
+  SameSite cookies, and a non-root distroless container. Changing your password signs out
+  your other sessions.
+- **Accessible.** WCAG AA contrast in light and dark themes, full keyboard support, and
+  screen-reader labels. Every page is checked with axe-core. Set in
+  [Atkinson Hyperlegible Next](https://www.brailleinstitute.org/freefont/) and JetBrains Mono,
+  both self-hosted (OFL) so the dashboard makes no third-party requests.
 
 ## Quick start
 
@@ -48,7 +57,8 @@ go build -o burrow ./cmd/burrow
 ./burrow
 ```
 
-On first visit you'll create the admin account. Then create a project, copy its DSN, and:
+On first visit you'll create the admin account and your first team. Then create a
+project, copy its DSN, and:
 
 ```python
 import sentry_sdk
@@ -57,6 +67,15 @@ sentry_sdk.init(dsn="http://<key>@localhost:8000/1")
 ```
 
 Not ready to wire up an SDK? Every project has a **Send test event** button.
+
+To add teammates, open your team and click **Create invite link**. There's no email setup
+to do: send them the link however you like.
+
+### Upgrading from v0.1
+
+Just run the new binary on your existing database. Existing accounts become instance admins
+and owners of a new **Default** team that holds all your current projects. Sessions,
+issues, and DSNs keep working unchanged.
 
 ## Configuration
 

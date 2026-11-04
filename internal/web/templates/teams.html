@@ -1,0 +1,19 @@
+{{define "content"}}
+<div class="pagehead">
+  <h1>Teams</h1>
+  <a class="button primary" href="/teams/new">New team</a>
+</div>
+<div class="list">
+{{range .Data}}
+  <a class="row" href="/teams/{{.Slug}}">
+    <div class="row-main">
+      <div class="row-title">{{.Name}}</div>
+      <div class="row-sub">{{.MemberCount}} {{plural .MemberCount "member" "members"}} · {{.ProjectCount}} {{plural .ProjectCount "project" "projects"}}</div>
+    </div>
+    {{if .MyRole}}<span class="pill {{.MyRole}}">{{.MyRole}}</span>{{else}}<span class="pill admin" title="You can manage this team because you're an admin">admin view</span>{{end}}
+  </a>
+{{else}}
+  <div class="empty"><p>You're not on any team yet.</p></div>
+{{end}}
+</div>
+{{end}}

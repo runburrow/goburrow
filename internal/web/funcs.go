@@ -13,6 +13,7 @@ import (
 
 var funcs = template.FuncMap{
 	"ago":        ago,
+	"until":      until,
 	"datetime":   func(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05 UTC") },
 	"isodate":    func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
 	"clock":      func(t time.Time) string { return t.UTC().Format("15:04:05") },
@@ -154,4 +155,18 @@ func barHeight(v, max int) string {
 		pct = 5
 	}
 	return fmt.Sprintf("h%d", pct)
+}
+
+func until(t time.Time) string {
+	d := time.Until(t)
+	switch {
+	case d <= 0:
+		return "now"
+	case d < time.Hour:
+		return fmt.Sprintf("in %dm", int(d.Minutes())+1)
+	case d < 48*time.Hour:
+		return fmt.Sprintf("in %dh", int(d.Hours()))
+	default:
+		return fmt.Sprintf("in %d days", int(d.Hours()/24))
+	}
 }

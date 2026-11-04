@@ -100,6 +100,45 @@ var migrations = []string{
 	);
 	CREATE INDEX events_by_issue ON events(issue_id, received_at DESC, id DESC);
 	CREATE INDEX events_by_received ON events(received_at);`,
+
+	// 2: multi-user + teams. Existing installs keep working: everyone who
+	// already had an account was effectively an admin, so they become
+	// instance admins and owners of a "Default" team holding all projects.
+	`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0;
+	UPDATE users SET is_admin = 1;
+	CREATE TABLE teams (
+		id         INTEGER PRIMARY KEY,
+		name       TEXT NOT NULL,
+		slug       TEXT NOT NULL UNIQUE,
+		created_at INTEGER NOT NULL
+	);
+	CREATE TABLE team_members (
+		team_id    INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+		user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		role       TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+		created_at INTEGER NOT NULL,
+		PRIMARY KEY (team_id, user_id)
+	);
+	CREATE INDEX team_members_by_user ON team_members(user_id);
+	CREATE TABLE invites (
+		id         INTEGER PRIMARY KEY,
+		token_hash TEXT NOT NULL UNIQUE,
+		team_id    INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+		role       TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+		email      TEXT NOT NULL DEFAULT '' COLLATE NOCASE,
+		created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+		created_at INTEGER NOT NULL,
+		expires_at INTEGER NOT NULL,
+		used_at    INTEGER
+	);
+	ALTER TABLE projects ADD COLUMN team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE;
+	CREATE INDEX projects_by_team ON projects(team_id);
+	INSERT INTO teams (name, slug, created_at)
+		SELECT 'Default', 'default', CAST(strftime('%s', 'now') AS INTEGER) * 1000
+		WHERE EXISTS (SELECT 1 FROM users) OR EXISTS (SELECT 1 FROM projects);
+	UPDATE projects SET team_id = (SELECT id FROM teams WHERE slug = 'default');
+	INSERT INTO team_members (team_id, user_id, role, created_at)
+		SELECT t.id, u.id, 'owner', u.created_at FROM teams t, users u WHERE t.slug = 'default';`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {
@@ -147,6 +186,7 @@ func randomHex(n int) string {
 
 type Project struct {
 	ID        int64
+	TeamID    int64
 	Name      string
 	Slug      string
 	Platform  string
@@ -154,46 +194,65 @@ type Project struct {
 	CreatedAt time.Time
 
 	// Populated by ListProjects only.
+	TeamName        string
 	UnresolvedCount int
 	LastSeen        time.Time
 }
 
-func (s *Store) CreateProject(ctx context.Context, name, platform string) (*Project, error) {
+// reservedSlugs collide with fixed routes (/projects/new, /teams/new).
+var reservedSlugs = map[string]bool{"new": true}
+
+// insertWithSlug derives a slug from name and retries with -2, -3... until
+// insert succeeds without a UNIQUE violation on the slug column.
+func insertWithSlug(name, fallback string, insert func(slug string) error) (string, error) {
 	base := Slugify(name)
 	if base == "" {
-		base = "project"
+		base = fallback
 	}
-	if base == "new" { // would collide with the /projects/new route
-		base = "new-project"
+	if reservedSlugs[base] {
+		base += "-" + fallback
 	}
-	p := &Project{Name: name, Platform: platform, PublicKey: randomHex(16), CreatedAt: time.Now().UTC()}
 	for i := 0; i < 100; i++ {
 		slug := base
 		if i > 0 {
 			slug = fmt.Sprintf("%s-%d", base, i+1)
 		}
-		res, err := s.db.ExecContext(ctx,
-			`INSERT INTO projects (name, slug, platform, public_key, created_at) VALUES (?, ?, ?, ?, ?)`,
-			name, slug, platform, p.PublicKey, ms(p.CreatedAt))
-		if err != nil {
-			if strings.Contains(err.Error(), "UNIQUE") && strings.Contains(err.Error(), "slug") {
-				continue
-			}
-			return nil, err
+		err := insert(slug)
+		if err == nil {
+			return slug, nil
 		}
-		p.ID, _ = res.LastInsertId()
-		p.Slug = slug
-		return p, nil
+		if strings.Contains(err.Error(), "UNIQUE") && strings.Contains(err.Error(), "slug") {
+			continue
+		}
+		return "", err
 	}
-	return nil, errors.New("could not allocate a unique project slug")
+	return "", errors.New("could not allocate a unique slug")
 }
 
-const projectCols = `id, name, slug, platform, public_key, created_at`
+func (s *Store) CreateProject(ctx context.Context, teamID int64, name, platform string) (*Project, error) {
+	p := &Project{TeamID: teamID, Name: name, Platform: platform, PublicKey: randomHex(16), CreatedAt: time.Now().UTC()}
+	slug, err := insertWithSlug(name, "project", func(slug string) error {
+		res, err := s.db.ExecContext(ctx,
+			`INSERT INTO projects (team_id, name, slug, platform, public_key, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+			teamID, name, slug, platform, p.PublicKey, ms(p.CreatedAt))
+		if err == nil {
+			p.ID, _ = res.LastInsertId()
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	p.Slug = slug
+	return p, nil
+}
+
+const projectCols = `id, COALESCE(team_id, 0), name, slug, platform, public_key, created_at`
 
 func scanProject(sc interface{ Scan(...any) error }) (*Project, error) {
 	var p Project
 	var created int64
-	if err := sc.Scan(&p.ID, &p.Name, &p.Slug, &p.Platform, &p.PublicKey, &created); err != nil {
+	if err := sc.Scan(&p.ID, &p.TeamID, &p.Name, &p.Slug, &p.Platform, &p.PublicKey, &created); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -211,12 +270,27 @@ func (s *Store) ProjectBySlug(ctx context.Context, slug string) (*Project, error
 	return scanProject(s.db.QueryRowContext(ctx, `SELECT `+projectCols+` FROM projects WHERE slug = ?`, slug))
 }
 
-func (s *Store) ListProjects(ctx context.Context) ([]*Project, error) {
+// ListProjects returns the projects visible to a user: those of teams they
+// belong to, or every project for instance admins. teamID > 0 narrows it to
+// one team.
+func (s *Store) ListProjects(ctx context.Context, userID int64, admin bool, teamID int64) ([]*Project, error) {
+	where, args := []string{"1=1"}, []any{}
+	if !admin {
+		where = append(where, "p.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)")
+		args = append(args, userID)
+	}
+	if teamID > 0 {
+		where = append(where, "p.team_id = ?")
+		args = append(args, teamID)
+	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT p.id, p.name, p.slug, p.platform, p.public_key, p.created_at,
+		SELECT p.id, COALESCE(p.team_id, 0), p.name, p.slug, p.platform, p.public_key, p.created_at,
+		       COALESCE(t.name, ''),
 		       (SELECT COUNT(*) FROM issues i WHERE i.project_id = p.id AND i.status = 'unresolved'),
 		       COALESCE((SELECT MAX(last_seen) FROM issues i WHERE i.project_id = p.id), 0)
-		FROM projects p ORDER BY p.name COLLATE NOCASE`)
+		FROM projects p LEFT JOIN teams t ON t.id = p.team_id
+		WHERE `+strings.Join(where, " AND ")+`
+		ORDER BY t.name COLLATE NOCASE, p.name COLLATE NOCASE`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +299,7 @@ func (s *Store) ListProjects(ctx context.Context) ([]*Project, error) {
 	for rows.Next() {
 		var p Project
 		var created, last int64
-		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Platform, &p.PublicKey, &created, &p.UnresolvedCount, &last); err != nil {
+		if err := rows.Scan(&p.ID, &p.TeamID, &p.Name, &p.Slug, &p.Platform, &p.PublicKey, &created, &p.TeamName, &p.UnresolvedCount, &last); err != nil {
 			return nil, err
 		}
 		p.CreatedAt = fromMS(created)

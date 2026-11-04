@@ -1,20 +1,29 @@
 {{define "content"}}
 <div class="pagehead">
   <h1>Projects</h1>
-  <a class="button primary" href="/projects/new">+ New project</a>
+  {{if .Data.CanCreate}}<a class="button primary" href="/projects/new">New project</a>{{end}}
 </div>
-<div class="list">
-{{range .Data}}
-  <a class="row project-row" href="/projects/{{.Slug}}">
-    <div>
-      <strong>{{.Name}}</strong>
-      <span class="pill">{{if .Platform}}{{.Platform}}{{else}}other{{end}}</span>
-    </div>
-    <div class="row-meta">
-      <span class="{{if .UnresolvedCount}}count-hot{{else}}muted{{end}}">{{.UnresolvedCount}} unresolved</span>
-      <span class="muted">last event {{ago .LastSeen}}</span>
-    </div>
-  </a>
+{{if eq .Flash "welcome"}}<p class="alert ok" role="status">You're in. These are the projects your teams can see.</p>{{end}}
+{{range .Data.Groups}}
+  {{if $.Data.MultiTeam}}<h2 class="group-label">{{.Team}}</h2>{{end}}
+  <div class="list">
+  {{range .Projects}}
+    <a class="row" href="/projects/{{.Slug}}">
+      <div class="row-main">
+        <div class="row-title">{{.Name}}</div>
+        <div class="row-sub">{{if .Platform}}{{.Platform}}{{else}}other{{end}}{{if not $.Data.MultiTeam}} · {{.TeamName}}{{end}}</div>
+      </div>
+      <div class="row-meta">
+        <span class="{{if .UnresolvedCount}}count-hot{{end}}">{{.UnresolvedCount}} unresolved</span>
+        <span class="hide-sm">last event {{ago .LastSeen}}</span>
+      </div>
+    </a>
+  {{end}}
+  </div>
+{{else}}
+  <div class="list"><div class="empty">
+    <p class="big">No projects yet.</p>
+    <p class="muted">You're not in a team that has projects. <a href="/teams/new">Start a team</a> or ask an owner to invite you.</p>
+  </div></div>
 {{end}}
-</div>
 {{end}}

@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="card narrow">
+  <h1>New team</h1>
+  <p class="muted">Teams own projects. Only a team's members can see its projects and issues. You'll be the owner.</p>
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/teams/new" class="stack">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <label>Name <input name="name" value="{{.Data.Name}}" required maxlength="100" placeholder="Payments" autofocus></label>
+    <button class="primary">Create team</button>
+  </form>
+</section>
+{{end}}

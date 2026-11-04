@@ -1,19 +1,19 @@
 {{define "content"}}
 {{$p := .Data.Project}}
 <div class="pagehead">
-  <h1><a href="/projects/{{$p.Slug}}">{{$p.Name}}</a> <span class="muted">/ settings</span></h1>
+  <h1><span class="eyebrow"><a href="/teams/{{.Data.Team.Slug}}">{{.Data.Team.Name}}</a> / <a href="/projects/{{$p.Slug}}">{{$p.Name}}</a></span>Settings</h1>
   <a class="button" href="/projects/{{$p.Slug}}">View issues →</a>
 </div>
 
-{{if eq .Flash "created"}}<p class="alert ok">Project created! Point your SDK at the DSN below, or send a test event to see how it looks.</p>{{end}}
-{{if eq .Flash "rotated"}}<p class="alert ok">Key rotated. Update the DSN in your apps, since the old one no longer works.</p>{{end}}
-{{if eq .Flash "delete-confirm"}}<p class="alert error">Type the project slug exactly to confirm deletion.</p>{{end}}
+{{if eq .Flash "created"}}<p class="alert ok" role="status">Project created! Point your SDK at the DSN below, or send a test event to see how it looks.</p>{{end}}
+{{if eq .Flash "rotated"}}<p class="alert ok" role="status">Key rotated. Update the DSN in your apps, since the old one no longer works.</p>{{end}}
+{{if eq .Flash "delete-confirm"}}<p class="alert error" role="alert">Type the project slug exactly to confirm deletion.</p>{{end}}
 
 <section class="card">
   <h2>DSN</h2>
   <p class="muted">Works with the official Sentry SDKs. Just use this as the <code>dsn</code>.</p>
   <div class="copybox">
-    <code id="dsn">{{.Data.DSN}}</code>
+    <code id="dsn" aria-label="DSN">{{.Data.DSN}}</code>
     <button type="button" class="small" data-copy="#dsn">Copy</button>
   </div>
   <form method="post" action="/projects/{{$p.Slug}}/test-event" class="inline">
@@ -26,42 +26,42 @@
   <h2>Quick setup</h2>
   {{$dsn := .Data.DSN}}
   {{if eq $p.Platform "python"}}
-<pre class="code">pip install sentry-sdk
+<pre class="code" tabindex="0" aria-label="Setup code">pip install sentry-sdk
 
 import sentry_sdk
 sentry_sdk.init(dsn="{{$dsn}}", environment="production")</pre>
   {{else if eq $p.Platform "node"}}
-<pre class="code">npm install @sentry/node
+<pre class="code" tabindex="0" aria-label="Setup code">npm install @sentry/node
 
 const Sentry = require("@sentry/node");
 Sentry.init({ dsn: "{{$dsn}}", environment: "production" });</pre>
   {{else if eq $p.Platform "javascript"}}
-<pre class="code">npm install @sentry/browser
+<pre class="code" tabindex="0" aria-label="Setup code">npm install @sentry/browser
 
 import * as Sentry from "@sentry/browser";
 Sentry.init({ dsn: "{{$dsn}}", environment: "production" });</pre>
   {{else if eq $p.Platform "go"}}
-<pre class="code">go get github.com/getsentry/sentry-go
+<pre class="code" tabindex="0" aria-label="Setup code">go get github.com/getsentry/sentry-go
 
 err := sentry.Init(sentry.ClientOptions{Dsn: "{{$dsn}}"})
 defer sentry.Flush(2 * time.Second)</pre>
   {{else if eq $p.Platform "ruby"}}
-<pre class="code">gem install sentry-ruby
+<pre class="code" tabindex="0" aria-label="Setup code">gem install sentry-ruby
 
 Sentry.init { |config| config.dsn = "{{$dsn}}" }</pre>
   {{else if eq $p.Platform "php"}}
-<pre class="code">composer require sentry/sentry
+<pre class="code" tabindex="0" aria-label="Setup code">composer require sentry/sentry
 
 \Sentry\init(['dsn' => '{{$dsn}}']);</pre>
   {{else if eq $p.Platform "rust"}}
-<pre class="code">cargo add sentry
+<pre class="code" tabindex="0" aria-label="Setup code">cargo add sentry
 
 let _guard = sentry::init(("{{$dsn}}", sentry::ClientOptions::default()));</pre>
   {{else if eq $p.Platform "java"}}
-<pre class="code">// io.sentry:sentry
+<pre class="code" tabindex="0" aria-label="Setup code">// io.sentry:sentry
 Sentry.init(options -> options.setDsn("{{$dsn}}"));</pre>
   {{else if eq $p.Platform "dotnet"}}
-<pre class="code">dotnet add package Sentry
+<pre class="code" tabindex="0" aria-label="Setup code">dotnet add package Sentry
 
 SentrySdk.Init(o => o.Dsn = "{{$dsn}}");</pre>
   {{else}}
@@ -70,6 +70,7 @@ SentrySdk.Init(o => o.Dsn = "{{$dsn}}");</pre>
   <p class="muted small">Tip: set <code>traces_sample_rate</code> to 0. Burrow currently accepts and discards performance data.</p>
 </section>
 
+{{if .Data.CanManage}}
 <section class="card danger">
   <h2>Danger zone</h2>
   <form method="post" action="/projects/{{$p.Slug}}/rotate-key" class="stack" data-confirm="Rotate the key? Apps using the current DSN will stop reporting until updated.">
@@ -83,4 +84,7 @@ SentrySdk.Init(o => o.Dsn = "{{$dsn}}");</pre>
     <div><button class="destructive">Delete project</button></div>
   </form>
 </section>
+{{else}}
+<p class="muted small">Key rotation and deleting the project are limited to team owners.</p>
+{{end}}
 {{end}}

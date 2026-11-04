@@ -17,16 +17,23 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/ingest"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
 )
 
 type harness struct {
-	t      *testing.T
-	ts     *httptest.Server
-	st     *store.Store
-	client *http.Client
-	csrf   string
+	t        *testing.T
+	ts       *httptest.Server
+	st       *store.Store
+	client   *http.Client
+	csrf     string
+	srv      *Server
+	lastBody string
+}
+
+func (h *harness) Ingest(p *store.Project, ev *event.Event) error {
+	return h.srv.Ingest.Ingest(context.Background(), p, ev)
 }
 
 func newHarness(t *testing.T) *harness {
@@ -48,7 +55,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	ts.Config.Handler = h
 	jar, _ := cookiejar.New(nil)
-	return &harness{t: t, ts: ts, st: st, client: &http.Client{Jar: jar}}
+	return &harness{t: t, ts: ts, st: st, srv: srv, client: &http.Client{Jar: jar}}
 }
 
 func (h *harness) get(path string) (int, string) {
@@ -59,6 +66,7 @@ func (h *harness) get(path string) (int, string) {
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
+	h.lastBody = string(b)
 	if m := regexp.MustCompile(`name="csrf" value="([0-9a-f]+)"`).FindSubmatch(b); m != nil {
 		h.csrf = string(m[1])
 	}
@@ -126,17 +134,17 @@ func TestEndToEnd(t *testing.T) {
 	if code, _ := h.post("/setup", url.Values{"email": {"a@b.co"}, "password": {"short"}, "password2": {"short"}}); code != 400 {
 		t.Errorf("weak password accepted: %d", code)
 	}
-	h.post("/setup", url.Values{"email": {"a@b.co"}, "password": {"long-enough-pw"}, "password2": {"long-enough-pw"}})
+	h.post("/setup", url.Values{"email": {"a@b.co"}, "password": {"long-enough-pw"}, "password2": {"long-enough-pw"}, "team": {"Core"}})
 	if code, _ := h.post("/setup", url.Values{"email": {"x@b.co"}, "password": {"long-enough-pw"}, "password2": {"long-enough-pw"}}); code != 403 {
 		t.Errorf("second setup should be forbidden, got %d", code)
 	}
 
 	// Create a project.
 	h.get("/projects/new")
-	if code, _ := h.post("/projects/new", url.Values{"name": {"Web App"}, "platform": {"node"}, "csrf": {"wrong"}}); code != 403 {
+	if code, _ := h.post("/projects/new", url.Values{"name": {"Web App"}, "platform": {"node"}, "team": {"core"}, "csrf": {"wrong"}}); code != 403 {
 		t.Errorf("bad CSRF accepted: %d", code)
 	}
-	if code, body := h.post("/projects/new", url.Values{"name": {"Web App"}, "platform": {"node"}}); code != 200 || !strings.Contains(body, "/1") {
+	if code, body := h.post("/projects/new", url.Values{"name": {"Web App"}, "platform": {"node"}, "team": {"core"}}); code != 200 || !strings.Contains(body, "/1") {
 		t.Fatalf("create project: %d", code)
 	}
 	p, err := h.st.ProjectBySlug(context.Background(), "web-app")

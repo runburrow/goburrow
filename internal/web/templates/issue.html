@@ -4,8 +4,8 @@
 
 <div class="issue-head">
   <div>
-    <h1><span class="level level-{{$i.Level}}"></span> {{$i.Title}}</h1>
-    <p class="mono muted">{{$i.Culprit}}</p>
+    <h1><span class="level level-{{$i.Level}}" aria-hidden="true"></span> {{$i.Title}}</h1>
+    <p class="muted"><span class="lvl lvl-{{$i.Level}}">{{$i.Level}}</span>{{with $i.Culprit}} · <span class="mono">{{.}}</span>{{end}}</p>
   </div>
   <div class="issue-actions">
     <span class="pill status-{{$i.Status}}">{{$i.Status}}</span>
@@ -16,10 +16,12 @@
       <button {{if eq $st "resolved"}}class="primary"{{end}}>{{if eq $st "resolved"}}Resolve{{else if eq $st "ignored"}}Ignore{{else}}Reopen{{end}}</button>
     </form>
     {{end}}{{end}}
+    {{if .Data.CanManage}}
     <form method="post" action="/issues/{{$i.ID}}/delete" class="inline" data-confirm="Delete this issue and all its events?">
       <input type="hidden" name="csrf" value="{{$csrf}}">
       <button class="destructive">Delete</button>
     </form>
+    {{end}}
   </div>
 </div>
 
@@ -30,17 +32,17 @@
   <section class="card"><p class="muted">The events for this issue have aged out of retention. New occurrences will show up here.</p></section>
 {{else}}
 
-<section class="card event-nav">
+<nav class="event-nav" aria-label="Events in this issue">
   <div>
     <strong>Event</strong> <code>{{$e.EventID}}</code>
-    <span class="muted small" title="{{datetime $e.Timestamp}}">{{datetime $e.Timestamp}} ({{ago $e.Timestamp}})</span>
+    <span class="muted">{{datetime $e.Timestamp}} ({{ago $e.Timestamp}})</span>
   </div>
-  <div>
-    {{if .Data.Newer}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Newer}}">← Newer</a>{{else}}<span class="button small disabled">← Newer</span>{{end}}
-    {{if .Data.Older}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Older}}">Older →</a>{{else}}<span class="button small disabled">Older →</span>{{end}}
+  <div class="nav-buttons">
+    {{if .Data.Newer}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Newer}}">← Newer</a>{{else}}<span class="button small" aria-disabled="true">← Newer</span>{{end}}
+    {{if .Data.Older}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Older}}">Older →</a>{{else}}<span class="button small" aria-disabled="true">Older →</span>{{end}}
     <a class="button small" href="/issues/{{$i.ID}}">Latest</a>
   </div>
-</section>
+</nav>
 
 {{if $e.Message}}{{if or (not $e.Exceptions) (ne $e.Message (index $e.Exceptions 0).Value)}}
 <section class="card">
@@ -49,7 +51,8 @@
 </section>
 {{end}}{{end}}
 
-{{range $ex := reverseExc $e.Exceptions}}
+{{range $exIdx, $ex := reverseExc $e.Exceptions}}
+{{if gt $exIdx 0}}<p class="chained">caused by</p>{{end}}
 <section class="card exception">
   {{if or $ex.Type $ex.Value}}
   <h2 class="exc-title">{{if $ex.Type}}{{$ex.Type}}{{else}}Error{{end}}</h2>
@@ -69,7 +72,7 @@
         {{if $f.IsInApp}}<span class="pill small">in app</span>{{end}}
       </summary>
       {{if frameHasContext $f}}
-      <ol class="context" start="{{sub $f.Lineno (len $f.PreContext)}}">
+      <ol class="context" tabindex="0" aria-label="Source around line {{$f.Lineno}}" start="{{sub $f.Lineno (len $f.PreContext)}}">
         {{range $f.PreContext}}<li><code>{{.}}</code></li>{{end}}
         <li class="hit"><code>{{$f.ContextLine}}</code></li>
         {{range $f.PostContext}}<li><code>{{.}}</code></li>{{end}}
@@ -132,17 +135,17 @@
 <section class="card">
   <details>
     <summary><strong>Raw event JSON</strong></summary>
-    <pre class="code">{{json $e}}</pre>
+    <pre class="code" tabindex="0">{{json $e}}</pre>
   </details>
 </section>
 {{end}}
 </div>
 
-<aside class="issue-side">
-  <section class="card">
-    <h3>Activity <span class="muted small">(14 days)</span></h3>
+<aside class="issue-side" aria-label="Issue details">
+  <section>
+    <h3>Activity, last 14 days</h3>
     {{$max := maxInt .Data.Daily}}
-    <div class="bars" title="events per day">
+    <div class="bars" role="img" aria-label="Events per day over the last 14 days">
       {{range .Data.Daily}}<span class="bar {{barHeight . $max}}" title="{{.}} events"></span>{{end}}
     </div>
     <dl class="stats">
@@ -153,7 +156,7 @@
   </section>
 
   {{if $e}}
-  <section class="card">
+  <section>
     <h3>Tags</h3>
     <dl class="stats">
       {{with $e.Environment}}<dt>environment</dt><dd>{{.}}</dd>{{end}}
@@ -167,14 +170,14 @@
   </section>
 
   {{with $e.User}}
-  <section class="card">
+  <section>
     <h3>User</h3>
     <dl class="stats">{{range $k := sortedKeys .}}<dt>{{$k}}</dt><dd>{{stringify (index $e.User $k)}}</dd>{{end}}</dl>
   </section>
   {{end}}
   {{end}}
 
-  <section class="card">
+  <section>
     <h3>Recent events</h3>
     <ul class="recent">
       {{range .Data.Recent}}
