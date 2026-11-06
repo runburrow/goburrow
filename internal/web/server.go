@@ -35,8 +35,16 @@ type Server struct {
 	Log     *slog.Logger
 	BaseURL *url.URL // public URL, used to build DSNs and secure cookies
 	Version string
+	Now     func() time.Time // optional clock override for tests
 
 	pages map[string]*template.Template
+}
+
+func (s *Server) now() time.Time {
+	if s.Now != nil {
+		return s.Now().UTC()
+	}
+	return time.Now().UTC()
 }
 
 // Handler builds the full HTTP handler: ingestion API + dashboard.
@@ -80,10 +88,10 @@ func (s *Server) loadTemplates() error {
 	}
 	for _, path := range entries {
 		name := strings.TrimSuffix(strings.TrimPrefix(path, "templates/"), ".html")
-		if name == "layout" {
+		if name == "layout" || name == "partials" {
 			continue
 		}
-		t, err := template.New("layout.html").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", path)
+		t, err := template.New("layout.html").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", "templates/partials.html", path)
 		if err != nil {
 			return fmt.Errorf("template %s: %w", name, err)
 		}
@@ -92,12 +100,19 @@ func (s *Server) loadTemplates() error {
 	return nil
 }
 
+// navigationData avoids inspecting Data: project lists are slices and error data is a string.
+type navigationData struct {
+	Page    string
+	Project *store.Project
+}
+
 // pageData is what every template receives.
 type pageData struct {
 	Title   string
 	Session *store.Session
 	Version string
 	Flash   string
+	Nav     navigationData
 	Data    any
 }
 
@@ -108,6 +123,10 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 		return
 	}
 	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Data: data, Flash: r.URL.Query().Get("flash")}
+	pd.Nav.Page = page
+	if m, ok := data.(map[string]any); ok {
+		pd.Nav.Project, _ = m["Project"].(*store.Project)
+	}
 	var buf strings.Builder
 	if err := t.ExecuteTemplate(&buf, "layout.html", pd); err != nil {
 		s.Log.Error("render", "page", page, "err", err)

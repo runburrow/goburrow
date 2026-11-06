@@ -1,86 +1,121 @@
 {{define "content"}}
 {{$p := .Data.Project}}
-<div class="pagehead">
-  <h1><a href="/projects/{{$p.Slug}}">{{$p.Name}}</a> <span class="muted">/ settings</span></h1>
-  <a class="button" href="/projects/{{$p.Slug}}">View issues →</a>
-</div>
-
-{{if eq .Flash "created"}}<p class="alert ok">Project created! Point your SDK at the DSN below, or send a test event to see how it looks.</p>{{end}}
-{{if eq .Flash "rotated"}}<p class="alert ok">Key rotated. Update the DSN in your apps, since the old one no longer works.</p>{{end}}
-{{if eq .Flash "delete-confirm"}}<p class="alert error">Type the project slug exactly to confirm deletion.</p>{{end}}
-
-<section class="card">
-  <h2>DSN</h2>
-  <p class="muted">Works with the official Sentry SDKs. Just use this as the <code>dsn</code>.</p>
-  <div class="copybox">
-    <code id="dsn">{{.Data.DSN}}</code>
-    <button type="button" class="small" data-copy="#dsn">Copy</button>
+<header class="pagehead settings-pagehead">
+  <div class="pagehead-copy">
+    <span class="note tape-note" aria-hidden="true">Label side</span>
+    <h1>Project Settings</h1>
+    <p class="mono muted"><a href="/projects/{{$p.Slug}}">{{$p.Name}}</a> <span aria-hidden="true">/</span> {{if $p.Platform}}{{$p.Platform}}{{else}}other{{end}}</p>
   </div>
-  <form method="post" action="/projects/{{$p.Slug}}/test-event" class="inline">
-    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-    <button class="primary">Send test event</button>
-  </form>
+  <a class="button" href="/projects/{{$p.Slug}}">View issues →</a>
+</header>
+
+{{if eq .Flash "created"}}<p class="alert ok" role="status">Project created. Point your SDK at the DSN below, or send a test event to see how it looks.</p>{{end}}
+{{if eq .Flash "rotated"}}<p class="alert ok" role="status">Key rotated. Update the DSN in your apps — the old one no longer works.</p>{{end}}
+{{if eq .Flash "delete-confirm"}}<p class="alert error" role="alert">Type the project slug exactly to confirm deletion.</p>{{end}}
+
+<section class="panel admin-panel" aria-labelledby="dsn-heading">
+  <div class="panel-head">
+    <h2 id="dsn-heading">Error Tracking</h2>
+    <span class="note copy-note" aria-hidden="true"><svg class="copy-note-arrow" viewBox="0 0 28 22" aria-hidden="true"><path d="M25 3C15 4 9 9 5 18M5 18l-2-6M5 18l6-2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>COPY DSN</span>
+  </div>
+  <p class="muted">Configure your DSN to send errors from your application. Works with official Sentry SDKs.</p>
+  <span class="dsn-label mono">DSN</span>
+  <div class="dsn-row">
+    <div class="copybox dsn-box">
+      <code id="dsn">{{.Data.DSN}}</code>
+    </div>
+    <button type="button" class="button dsn-copy-btn" data-copy="#dsn">
+      <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="7" width="9" height="9" rx="1"/><path d="M4 13H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1"/></svg>
+      <span>Copy</span>
+    </button>
+  </div>
+  <div class="settings-actions">
+    <form method="post" action="/projects/{{$p.Slug}}/test-event">
+      <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+      <button type="submit">
+        <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M17.5 2.5 9 11M17.5 2.5l-5.5 15-3-6.5-6.5-3 15-5.5Z"/></svg>
+        <span>Send test event</span>
+      </button>
+      <span class="help">Send a test error to verify your setup.</span>
+    </form>
+    <form method="post" action="/projects/{{$p.Slug}}/rotate-key" data-confirm="Rotate the key? Apps using the current DSN will stop reporting until updated.">
+      <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+      <button type="submit">
+        <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="6.5" cy="11.5" r="3.5"/><path d="m9 9 7-7m-2 2 2 2m-4.5.5 2 2"/></svg>
+        <span>Rotate key</span>
+      </button>
+      <span class="help">Generate a new DSN key (invalidates the current DSN).</span>
+    </form>
+  </div>
 </section>
 
-<section class="card">
-  <h2>Quick setup</h2>
+<section class="panel admin-panel" aria-labelledby="setup-heading">
+  <h2 id="setup-heading">Quick setup</h2>
   {{$dsn := .Data.DSN}}
+  <div class="code-scroll">
   {{if eq $p.Platform "python"}}
-<pre class="code">pip install sentry-sdk
+  <pre class="code">pip install sentry-sdk
 
 import sentry_sdk
 sentry_sdk.init(dsn="{{$dsn}}", environment="production")</pre>
   {{else if eq $p.Platform "node"}}
-<pre class="code">npm install @sentry/node
+  <pre class="code">npm install @sentry/node
 
 const Sentry = require("@sentry/node");
 Sentry.init({ dsn: "{{$dsn}}", environment: "production" });</pre>
   {{else if eq $p.Platform "javascript"}}
-<pre class="code">npm install @sentry/browser
+  <pre class="code">npm install @sentry/browser
 
 import * as Sentry from "@sentry/browser";
 Sentry.init({ dsn: "{{$dsn}}", environment: "production" });</pre>
   {{else if eq $p.Platform "go"}}
-<pre class="code">go get github.com/getsentry/sentry-go
+  <pre class="code">go get github.com/getsentry/sentry-go
 
 err := sentry.Init(sentry.ClientOptions{Dsn: "{{$dsn}}"})
 defer sentry.Flush(2 * time.Second)</pre>
   {{else if eq $p.Platform "ruby"}}
-<pre class="code">gem install sentry-ruby
+  <pre class="code">gem install sentry-ruby
 
 Sentry.init { |config| config.dsn = "{{$dsn}}" }</pre>
   {{else if eq $p.Platform "php"}}
-<pre class="code">composer require sentry/sentry
+  <pre class="code">composer require sentry/sentry
 
 \Sentry\init(['dsn' => '{{$dsn}}']);</pre>
   {{else if eq $p.Platform "rust"}}
-<pre class="code">cargo add sentry
+  <pre class="code">cargo add sentry
 
 let _guard = sentry::init(("{{$dsn}}", sentry::ClientOptions::default()));</pre>
   {{else if eq $p.Platform "java"}}
-<pre class="code">// io.sentry:sentry
+  <pre class="code">// io.sentry:sentry
 Sentry.init(options -> options.setDsn("{{$dsn}}"));</pre>
   {{else if eq $p.Platform "dotnet"}}
-<pre class="code">dotnet add package Sentry
+  <pre class="code">dotnet add package Sentry
 
 SentrySdk.Init(o => o.Dsn = "{{$dsn}}");</pre>
   {{else}}
-<p>Install the Sentry SDK for your language and initialize it with the DSN above. Burrow speaks the same ingestion protocol.</p>
+  <p>Install the Sentry SDK for your language and initialize it with the DSN above. Burrow speaks the same ingestion protocol.</p>
   {{end}}
-  <p class="muted small">Tip: set <code>traces_sample_rate</code> to 0. Burrow currently accepts and discards performance data.</p>
+  </div>
+  <p class="muted small">Tip: set <code>traces_sample_rate</code> to 0. Burrow accepts performance data and discards it.</p>
 </section>
 
-<section class="card danger">
-  <h2>Danger zone</h2>
-  <form method="post" action="/projects/{{$p.Slug}}/rotate-key" class="stack" data-confirm="Rotate the key? Apps using the current DSN will stop reporting until updated.">
+<section class="panel danger danger-box admin-panel" aria-labelledby="danger-heading">
+  <div class="danger-head">
+    <svg class="icon danger-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 18H2Z M12 9v5"/><circle cx="12" cy="17" r=".8" fill="currentColor"/></svg>
+    <div>
+      <h2 id="danger-heading">Danger Zone</h2>
+      <p class="muted">Permanently delete this project and all its issues. This cannot be undone.</p>
+    </div>
+  </div>
+  <form method="post" action="/projects/{{$p.Slug}}/delete" class="delete-form">
     <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-    <div><button>Rotate DSN key</button> <span class="muted small">Invalidates the current DSN.</span></div>
-  </form>
-  <form method="post" action="/projects/{{$p.Slug}}/delete" class="stack">
-    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-    <label><span>Type <code>{{$p.Slug}}</code> to delete this project and all its issues:</span>
-      <input name="confirm" autocomplete="off"></label>
-    <div><button class="destructive">Delete project</button></div>
+    <label for="delete-confirm"><span>Type <code>{{$p.Slug}}</code> to confirm deletion</span>
+      <input id="delete-confirm" name="confirm" placeholder="{{$p.Slug}}" autocomplete="off" spellcheck="false">
+    </label>
+    <button class="destructive" type="submit">
+      <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m-6 0v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6"/></svg>
+      <span>Delete project</span>
+    </button>
   </form>
 </section>
 {{end}}

@@ -1,0 +1,541 @@
+/* Night Tape / issues index + issue detail.
+   Page-specific composition only; tokens and primitives live in style.css. */
+
+/* Shared editorial details ------------------------------------------------- */
+.tape-note {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 3px;
+  font-size: 1.35rem;
+  line-height: 1;
+  transform: rotate(-3deg);
+  transform-origin: left center;
+}
+.section-kicker {
+  color: var(--muted);
+  font: .61rem/1.5 var(--mono);
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+.issues-pagehead {
+  align-items: flex-end;
+  padding-bottom: 24px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.issues-pagehead h1 { margin-bottom: .5rem; }
+.issues-pagehead .pagehead-copy > p { margin: 0; font-size: .72rem; }
+.issues-pagehead .pagehead-copy > p span { margin: 0 7px; color: var(--border); }
+.issues-pagehead > .button { margin-bottom: 1px; }
+.issues-pagehead > .button .icon { width: 16px; height: 16px; }
+.issues-filters { padding-top: 0; }
+.issue-tabs { margin-bottom: 24px; }
+.issue-tabs .tab > span:last-child { white-space: nowrap; }
+.issue-tabs .tab:not(.active):hover .tab-side { transform: rotate(-3deg); }
+
+/* Issue tracklist ---------------------------------------------------------- */
+.issue-tracklist { position: relative; }
+.issue-tracklist .tracklist-head { min-height: 45px; }
+.issue-track {
+  position: relative;
+  transition: background-color 120ms ease;
+}
+.issue-track::before {
+  content: "";
+  position: absolute;
+  inset: 14px auto 14px 0;
+  width: 1px;
+  background: transparent;
+}
+.issue-track:hover::before,
+.issue-track:focus-visible::before { background: var(--blue); }
+.issue-track:focus-visible { outline-offset: -3px; }
+.issue-track .track-main { align-self: center; }
+.issue-track .track-title { font-size: .82rem; line-height: 1.55; }
+.issue-track .track-culprit { margin-top: 4px; }
+.issue-track .level-label {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: .54rem;
+  letter-spacing: .055em;
+}
+.issue-track .level-label.level-fatal { color: var(--fatal); }
+.issue-track .level-label::before { width: 6px; height: 6px; }
+.issue-track .track-activity { align-self: center; }
+.issue-track .barcode { width: 100%; }
+.issue-track .barcode-bars { height: 47px; gap: 3px; }
+.issue-track .barcode-days { color: var(--muted); }
+.track-cell-label,
+.track-first {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .58rem;
+  font-weight: 400;
+}
+.issue-track .track-events .figure { font-size: .9rem; }
+.issue-track .track-seen time { white-space: nowrap; }
+.issue-track .track-status { align-self: center; }
+.issue-track .pill { white-space: nowrap; }
+.issue-track .status-unresolved { border-color: var(--rule); }
+.issue-track .status-resolved { border-color: var(--border); }
+.issues-empty {
+  border-bottom: 0;
+  padding-top: 32px;
+}
+.issues-empty .empty-fox { width: 156px; margin-bottom: 12px; }
+.issues-empty h2 { margin-bottom: 7px; }
+.issues-empty > .button { margin-top: 8px; }
+.issues-empty p:last-child { margin-bottom: 0; }
+.issue-pager { font-size: .68rem; }
+.issue-pager > span { min-width: 0; }
+
+/* Issue header ------------------------------------------------------------- */
+.issue-crumbs { margin-bottom: 16px; }
+.issue-crumbs a { color: var(--text); text-decoration: none; }
+.issue-crumbs a:hover { text-decoration: underline; }
+.issue-crumbs > span { color: var(--muted); }
+.night-issue-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 24px;
+  margin-bottom: 0;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--rule);
+}
+.night-issue-head .issue-heading { min-width: 0; }
+.issue-heading-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 22px;
+  margin-bottom: 10px;
+}
+.issue-heading-top .level-label { color: var(--muted); }
+.issue-heading-top .level-label.level-fatal { color: var(--fatal); }
+.issue-heading-top .pill { font-size: .57rem; }
+.night-issue-head h1 {
+  max-width: 900px;
+  margin-bottom: 8px;
+  font-size: clamp(1.28rem, 2vw, 1.85rem);
+  line-height: 1.32;
+  letter-spacing: -.035em;
+}
+.issue-culprit { margin: 0; font-size: .72rem; line-height: 1.6; }
+.issue-tape-summary {
+  display: flex;
+  align-items: flex-end;
+  gap: 26px;
+  margin-top: 18px;
+}
+.issue-mini-activity { width: min(240px, 34%); min-width: 145px; }
+.issue-mini-activity .bars { height: 37px; gap: 2px; margin-bottom: 3px; }
+.issue-mini-activity .barcode-days { color: var(--muted); font-size: .42rem; gap: 2px; }
+.issue-head-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, auto));
+  gap: 0;
+  margin: 0;
+}
+.issue-head-stats > div {
+  min-width: 0;
+  padding: 0 18px;
+  border-left: 1px solid var(--border);
+}
+.issue-head-stats dt {
+  font: 500 .92rem/1.35 var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.issue-head-stats dd {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font: .59rem/1.35 var(--mono);
+}
+.night-issue-head .issue-actions {
+  justify-content: flex-end;
+  max-width: 355px;
+  padding: 4px 0 0 22px;
+  border-left: 1px solid var(--border);
+}
+.night-issue-head .issue-actions button { min-height: 38px; gap: 7px; }
+.night-issue-head .issue-actions button .icon { width: 15px; height: 15px; }
+.night-issue-head .issue-actions .primary { min-width: 91px; }
+
+/* Event navigation and main narrative ------------------------------------- */
+.night-issue-layout { gap: 28px; padding-top: 0; }
+.night-issue-layout .issue-body > .panel:first-child,
+.night-issue-layout .issue-body > .issue-event-nav:first-child { border-top: 0; }
+.issue-event-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0 18px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+.issue-section-tabs {
+  margin: 0;
+  padding-top: 6px;
+  gap: 24px;
+}
+.issue-section-tabs .tab {
+  text-transform: none;
+}
+.issue-section-tabs + .panel {
+  border-top: 0;
+}
+.event-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 3px 12px;
+}
+.event-identity .section-kicker { grid-column: 1 / -1; }
+.event-identity code { font-size: .69rem; }
+.event-identity time { font-family: var(--mono); font-size: .61rem; white-space: nowrap; }
+.event-controls { display: flex; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+.event-controls .button { min-height: 31px; }
+.issue-retention-empty { padding: 30px 0 36px; }
+.issue-retention-empty h2 { margin-top: 7px; }
+.issue-message pre { margin-bottom: 0; }
+.night-issue-layout .panel { margin-bottom: 4px; padding: 21px 0 24px; }
+.night-issue-layout .panel-head { margin-bottom: 14px; }
+.night-issue-layout .panel-head h2 { margin: 0; }
+.exception-head { align-items: flex-end; }
+.exception-head .tape-note { margin-bottom: 6px; font-size: 1.2rem; }
+.exception-head .exc-title { font-size: 1.03rem; }
+.issue-exception .exc-value {
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-left: 1px solid var(--border);
+  background: var(--code-bg);
+}
+.exception-mechanism { margin: 0 0 10px; font-family: var(--mono); }
+
+/* Stack frames: each code block owns its horizontal scroll. ---------------- */
+.issue-exception .frames { margin-top: 16px; border-color: var(--rule); }
+.issue-exception .frame { background: transparent; }
+.issue-exception .frame summary {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto 12px;
+  align-items: center;
+  gap: 12px;
+  min-height: 67px;
+  padding: 12px 14px;
+  list-style: none;
+}
+.issue-exception .frame summary::-webkit-details-marker { display: none; }
+.issue-exception .frame summary::after {
+  content: "⌄";
+  color: var(--muted);
+  font: 1rem/1 var(--mono);
+  text-align: center;
+}
+.issue-exception .frame[open] summary::after { transform: rotate(180deg); }
+.issue-exception .frame summary .track-number {
+  width: 30px;
+  height: 32px;
+  margin: 0;
+  font-size: 1.18rem;
+}
+.frame-location { display: block; min-width: 0; }
+.frame-function,
+.frame-file { display: block; overflow-wrap: anywhere; }
+.frame-function { color: var(--text); font-size: .76rem; line-height: 1.45; }
+.frame-file { margin-top: 3px; color: var(--muted); font-size: .66rem; line-height: 1.45; }
+.frame-scope {
+  color: var(--muted);
+  font: .59rem/1.4 var(--mono);
+  white-space: nowrap;
+}
+.issue-exception .frame.in-app .frame-scope { color: var(--text); }
+.code-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  background: var(--code-bg);
+}
+.code-scroll:focus-visible { outline-offset: -2px; }
+.code-scroll ol.context {
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+.code-scroll .context li { min-height: 1.85em; }
+.code-scroll .context li.hit { border-left-color: var(--red); }
+.frame-vars { border-top: 1px solid var(--border); }
+.frame-vars h3 {
+  margin: 0;
+  padding: 10px 14px 4px;
+  color: var(--muted);
+  font-size: .64rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.frame-vars .vars th:first-child { padding-left: 16px; }
+.frame-vars .vars td:last-child { padding-right: 16px; }
+.frame-vars .vars tr:last-child > * { border-bottom: 0; }
+.issue-exception .nocontext { font-family: var(--mono); }
+
+/* Context tables, breadcrumbs, and raw event ------------------------------- */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.table-scroll:focus-visible { outline-offset: 2px; }
+.issue-breadcrumbs .crumbs-table { min-width: 520px; }
+.issue-breadcrumbs .crumbs-table tbody tr:last-child td { border-bottom: 0; }
+.issue-breadcrumbs .crumbs-table th { font-size: .61rem; text-transform: uppercase; letter-spacing: .045em; }
+.crumb-message,
+.crumb-data { display: block; }
+.crumb-data { margin-top: 5px; line-height: 1.55; }
+.issue-data-panel .kv { table-layout: fixed; }
+.issue-data-panel .kv th { width: 27%; }
+.issue-data-panel .kv td code { font-family: var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.issue-data-panel .kv tr:last-child > * { border-bottom: 0; }
+.raw-event { padding-top: 0 !important; }
+.raw-event details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0 0;
+  list-style: none;
+}
+.raw-event details > summary::-webkit-details-marker { display: none; }
+.raw-event details > summary > span:first-child { display: flex; align-items: baseline; gap: 14px; }
+.raw-event details > summary strong { font: 500 1.14rem/1.3 var(--mono); }
+.raw-event-action { color: var(--muted); font: .62rem/1.4 var(--mono); }
+.raw-event details[open] > summary { padding-bottom: 18px; }
+.raw-event .code { max-height: 640px; overflow: auto; overscroll-behavior: contain; }
+
+/* Right-hand liner notes --------------------------------------------------- */
+.night-issue-layout .issue-side { padding-left: 24px; border-left-color: var(--rule); }
+.night-issue-layout .issue-side .panel:first-child { padding-top: 21px; border-top: 0; }
+.issue-side .panel-head { align-items: baseline; }
+.issue-side .panel-head h2 { font-size: .94rem; }
+.issue-side .section-kicker { font-size: .53rem; }
+.issue-side-barcode .bars { height: 55px; gap: 3px; }
+.issue-side-barcode .barcode-days { color: var(--muted); }
+.activity-total { margin: 15px 0 18px; font: .67rem/1.5 var(--mono); }
+.activity-total strong { font-size: .9rem; font-weight: 500; }
+.issue-stats { padding-top: 15px; border-top: 1px solid var(--border); }
+.issue-stats dt,
+.issue-stats dd { font-size: .66rem; }
+/* QA: legacy row class .issue-stats (style.css) right-aligns; labels read left here. */
+.issue-side .issue-stats dt { text-align: left; }
+.issue-tags { gap: 7px; }
+.issue-tags .tag {
+  max-width: 100%;
+  border-color: var(--border);
+  border-radius: 3px;
+  padding: 4px 7px;
+  font-size: .59rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.issue-user-stats { grid-template-columns: minmax(60px, max-content) minmax(0, 1fr); } /* QA: keys like ip_address no longer split mid-word */
+.issue-user-stats dd { font-size: .66rem; }
+.issue-side-breadcrumbs .timeline li {
+  font-size: .65rem;
+  padding-bottom: 14px;
+}
+.issue-side-breadcrumbs .timeline li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.issue-recent { margin-top: 2px; }
+.issue-recent li {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 0;
+}
+.issue-recent li:last-child { border-bottom: 0; }
+.recent-track { width: 5px; height: 5px; border: 1px solid var(--text); transform: rotate(45deg); }
+.recent-copy { min-width: 0; }
+/* QA: beat style.css `.recent li span { text-align: right }` (0,1,2) */
+.issue-recent .recent-copy,
+.issue-recent .recent-copy span { text-align: left; }
+.recent-copy > a,
+.recent-copy > span { display: block; }
+.recent-copy > a { font-family: var(--mono); text-decoration: none; }
+.recent-copy > a:hover { text-decoration: underline; }
+.recent-copy > span { margin-top: 2px; font-size: .57rem; }
+.issue-recent .level-label { font-size: .47rem; color: var(--muted); }
+.issue-recent .level-label::before { width: 5px; height: 5px; }
+.issue-recent .level-label.level-fatal { color: var(--fatal); }
+
+/* Responsive composition -------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  .issue-tabs .tab-side,
+  .issue-exception .frame summary::after { transition: transform 150ms ease; }
+}
+@media (max-width: 1180px) {
+  .night-issue-head { gap: 18px; }
+  .night-issue-head .issue-actions { max-width: 290px; padding-left: 18px; }
+  .issue-tape-summary { gap: 18px; }
+  .issue-head-stats > div { padding: 0 12px; }
+  .night-issue-layout .issue-side { padding-left: 18px; }
+  .issue-event-nav { align-items: flex-start; }
+  .event-identity { grid-template-columns: minmax(0, 1fr); }
+  .event-identity time { white-space: normal; }
+}
+@media (max-width: 1000px) {
+  .night-issue-layout { gap: 0; }
+  .night-issue-layout .issue-side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 26px;
+    padding-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .night-issue-layout .issue-side .panel:first-child { border-top: 0; }
+  .night-issue-layout .issue-side .panel { border-top: 0; }
+  .issue-event-nav { align-items: center; }
+  .event-identity { grid-template-columns: auto minmax(0, 1fr); }
+  .event-identity .section-kicker { grid-column: 1 / -1; }
+}
+@media (max-width: 860px) {
+  .night-issue-head { grid-template-columns: minmax(0, 1fr); }
+  .night-issue-head .issue-actions {
+    justify-content: flex-start;
+    max-width: none;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+  .issue-mini-activity { width: 220px; }
+  .issue-track .level-label { margin-top: 6px; }
+}
+@media (max-width: 700px) {
+  .issues-pagehead { padding-bottom: 18px; }
+  .issue-tabs { gap: 16px; }
+  .issue-track { min-height: 0; }
+  .issue-track .track-main { padding-right: 3px; }
+  .issue-track .track-title { font-size: .77rem; }
+  .issue-track .track-culprit { font-size: .63rem; }
+  .issue-track .track-activity { max-width: none; padding-right: 8px; }
+  .issue-track .barcode-bars { height: 38px; gap: 2px; }
+  .issue-track .barcode-days { gap: 2px; font-size: .42rem; }
+  .issue-track .track-events { padding-top: 4px; }
+  .issue-track .track-events .figure { font-size: .75rem; }
+  .issue-track .track-cell-label,
+  .issue-track .track-first { display: inline; margin: 0 0 0 3px; font-size: .54rem; }
+  .issue-track .track-first { display: none; }
+  .issue-track .track-seen { font-size: .67rem; }
+  .issue-track .track-seen::before { display: none; }
+  .issue-track .track-events::before { display: none; }
+  .issue-track .track-status { padding-right: 0; }
+  .issue-track .level-label { margin-top: 7px; }
+  .issue-track::before { inset: 12px auto 12px -4px; }
+  .issue-event-nav { align-items: flex-start; flex-direction: column; }
+  .event-controls { justify-content: flex-start; }
+  .night-issue-layout .issue-side { grid-template-columns: minmax(0, 1fr); }
+  .issue-mini-activity { width: 190px; min-width: 135px; }
+  .issue-head-stats { flex: 1; grid-template-columns: repeat(3, minmax(65px, 1fr)); }
+  .issue-head-stats > div { padding: 0 10px; }
+  .issue-head-stats dt { font-size: .79rem; }
+  .issue-head-stats dd { font-size: .54rem; }
+}
+@media (max-width: 480px) {
+  .tape-note { font-size: 1.22rem; }
+  .issues-pagehead { align-items: center; }
+  .issues-pagehead h1 { font-size: 1.65rem; }
+  .issues-pagehead .pagehead-copy > p { font-size: .63rem; }
+  .issues-pagehead > .button { align-self: flex-end; }
+  .issues-pagehead > .button .icon { display: none; }
+  .issue-tabs { gap: 12px; margin-bottom: 21px; }
+  .issue-tabs .tab { flex: 1 1 auto; align-items: flex-start; padding-left: 0; padding-right: 0; }
+  .issue-tabs .tab > span:last-child { white-space: normal; }
+  .issue-tabs .tab-side { font-size: 1.25rem; }
+  .issues-filters { gap: 11px; }
+  .issues-filters select { flex: 1 1 145px; }
+  .issues-filters > button { flex: 0 0 auto; }
+  .issue-track { column-gap: 9px; row-gap: 6px; padding: 12px 2px; min-height: 0; }
+  .issue-track .track-no { align-self: start; padding-top: 1px; }
+  .issue-track .track-title { font-size: .73rem; line-height: 1.55; }
+  .issue-track .track-culprit { font-size: .59rem; }
+  .issue-track .track-activity { grid-column: 2; max-width: 250px; padding-right: 0; }
+  .issue-track .barcode-bars { height: 22px; }
+  .issue-track .level-label { margin-top: 3px; }
+  .issue-track .track-culprit { margin-top: 1px; }
+  .issue-track .track-events, .issue-track .track-seen { padding-top: 0; }
+  .issue-track .track-status { grid-column: 3; grid-row: 2; align-self: end; justify-self: end; }
+  .issue-track .track-events { grid-row: 3; }
+  .issue-track .track-seen { grid-row: 3; }
+  .issue-track .track-status { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+  .issue-pager { gap: 8px; }
+  .issue-pager > span:nth-child(2) { text-align: center; font-size: .59rem; }
+  .issue-pager .button { padding-left: 8px; padding-right: 8px; }
+  .night-issue-head { gap: 18px; padding-bottom: 18px; }
+  .night-issue-head h1 { font-size: 1.23rem; }
+  .issue-culprit { font-size: .64rem; }
+  .issue-heading-top { margin-bottom: 8px; }
+  .issue-tape-summary { flex-direction: column; align-items: stretch; gap: 15px; margin-top: 16px; }
+  .issue-mini-activity { width: 100%; min-width: 0; }
+  .issue-mini-activity .bars { height: 34px; }
+  .issue-head-stats { width: 100%; }
+  .issue-head-stats > div:first-child { padding-left: 0; border-left: 0; }
+  .night-issue-head .issue-actions { gap: 7px; padding-top: 14px; }
+  .night-issue-head .issue-actions button { min-height: 36px; padding: 7px 9px; }
+  .issue-event-nav { gap: 13px; padding-top: 15px; }
+  .issue-section-tabs {
+    flex-wrap: nowrap;
+    gap: 11px;
+    padding-top: 2px;
+  }
+  .issue-section-tabs .tab {
+    flex: 0 0 auto;
+    font-size: .62rem;
+    padding: 8px 0 10px;
+    white-space: nowrap;
+  }
+  .event-identity { display: block; }
+  .event-identity > * { display: block; }
+  .event-identity code { margin: 5px 0; font-size: .63rem; }
+  .event-controls { width: 100%; }
+  .event-controls .button { flex: 1 1 auto; padding-left: 7px; padding-right: 7px; }
+  .night-issue-layout .panel { padding-top: 19px; padding-bottom: 21px; }
+  .night-issue-layout .panel-head { gap: 9px; }
+  .night-issue-layout .panel-head .section-kicker { font-size: .52rem; text-align: right; }
+  .exception-head .tape-note { font-size: 1.1rem; }
+  .issue-exception .frames { margin-left: 0; margin-right: 0; }
+  .issue-exception .frame summary {
+    grid-template-columns: 29px minmax(0, 1fr) 10px;
+    gap: 9px;
+    min-height: 66px;
+    padding: 11px 9px;
+  }
+  .issue-exception .frame summary .track-number { width: 27px; height: 30px; font-size: 1.08rem; }
+  .frame-function { font-size: .7rem; }
+  .frame-file { font-size: .59rem; }
+  .frame-scope { grid-column: 2; grid-row: 2; font-size: .52rem; }
+  .issue-exception .frame summary::after { grid-column: 3; grid-row: 1 / 3; }
+  .code-scroll ol.context { padding-left: 40px; font-size: .65rem; }
+  .code-scroll ol.context li.hit::before { left: -37px; }
+  .frame-vars .kv th { width: 36%; }
+  .issue-breadcrumbs .crumbs-table { min-width: 510px; }
+  .issue-breadcrumbs .crumbs-table th:nth-child(4),
+  .issue-breadcrumbs .crumbs-table td:nth-child(4) { display: table-cell; }
+  .issue-data-panel .kv th { width: 35%; }
+  .raw-event details > summary > span:first-child { display: block; }
+  .raw-event details > summary .section-kicker { display: block; margin-bottom: 4px; }
+  .raw-event details > summary strong { font-size: .95rem; }
+  .raw-event-action { font-size: .55rem; }
+  .issue-side .panel-head .section-kicker { text-align: right; }
+  .issue-tags .tag { font-size: .6rem; }
+}
+@media (forced-colors: active) {
+  .issue-track::before { background: CanvasText; }
+  .code-scroll .context li.hit { outline: 1px solid Highlight; }
+  .recent-track { border-color: CanvasText; }
+}

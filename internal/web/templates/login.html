@@ -1,12 +1,32 @@
 {{define "content"}}
-<section class="card narrow">
-  <h1>Log in</h1>
-  {{with .Data.Error}}<p class="alert error">{{.}}</p>{{end}}
-  <form method="post" action="/login" class="stack">
+<section class="auth-card">
+  <div class="auth-fox" aria-hidden="true">
+    {{template "fox-peek" .}}
+    <span class="note auth-note">
+      <svg class="auth-note-arrow" viewBox="0 0 34 22" aria-hidden="true"><path d="M32 4C22 7 13 12 3 18M3 18l8 1M3 18l4-7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>back so soon?<br><span class="auth-note-underline">same burrow.</span></span>
+    </span>
+  </div>
+  <h1>Log in.</h1>
+  <p class="auth-lead">The burrow remembers you. Prove it.</p>
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/login" class="stack auth-form">
     <input type="hidden" name="next" value="{{.Data.Next}}">
-    <label>Email <input type="email" name="email" value="{{.Data.Email}}" required autofocus autocomplete="username"></label>
-    <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
-    <button class="primary">Log in</button>
+    <label class="auth-field" for="login-email">
+      <svg class="icon auth-field-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="4" width="16" height="12" rx="1.5"/><path d="m2.5 5 7.5 6 7.5-6"/></svg>
+      <span class="auth-field-body">
+        <span class="auth-field-label">Email</span>
+        <input id="login-email" type="email" name="email" value="{{.Data.Email}}" placeholder="admin@yourdomain.com" required autofocus autocomplete="username" inputmode="email" spellcheck="false">
+      </span>
+    </label>
+    <label class="auth-field" for="login-password">
+      <svg class="icon auth-field-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>
+      <span class="auth-field-body">
+        <span class="auth-field-label">Password</span>
+        <input id="login-password" type="password" name="password" placeholder="••••••••••" required autocomplete="current-password">
+      </span>
+    </label>
+    <button class="auth-submit" type="submit">Log in →</button>
   </form>
 </section>
 {{end}}

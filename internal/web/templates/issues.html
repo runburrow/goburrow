@@ -1,61 +1,92 @@
 {{define "content"}}
 {{$p := .Data.Project}}
-<div class="pagehead">
-  <h1>{{$p.Name}}</h1>
-  <a class="button" href="/projects/{{$p.Slug}}/settings">Settings &amp; DSN</a>
-</div>
-{{if eq .Flash "test-sent"}}<p class="alert ok">Test event sent! It should be at the top of the list.</p>{{end}}
-
-<form class="filters" method="get" action="/projects/{{$p.Slug}}">
-  <div class="tabs">
-    {{range $s := (list "unresolved" "resolved" "ignored" "all")}}
-    <a class="tab {{if eq $s $.Data.Status}}active{{end}}" href="/projects/{{$p.Slug}}?status={{$s}}{{with $.Data.Query}}&q={{.}}{{end}}{{with $.Data.Sort}}&sort={{.}}{{end}}">{{$s}}</a>
-    {{end}}
+<header class="pagehead issues-pagehead">
+  <div class="pagehead-copy">
+    <span class="note tape-note" aria-hidden="true">Issue index</span>
+    <h1>Issues</h1>
+    <p class="mono muted">{{$p.Name}} <span aria-hidden="true">/</span> {{.Data.Counts.All}} {{plural .Data.Counts.All "issue" "issues"}} on tape</p>
   </div>
+  <a class="button" href="/projects/{{$p.Slug}}/settings">{{template "icon-settings" .}} Settings &amp; DSN</a>
+</header>
+{{if eq .Flash "test-sent"}}<p class="alert ok" role="status">Test event sent. It should be at the top of the list.</p>{{end}}
+
+<form class="filters search-form issues-filters" data-fox-search method="get" action="/projects/{{$p.Slug}}">
+  <nav class="tabs issue-tabs" aria-label="Issue status">
+    <a class="tab {{if eq .Data.Status "unresolved"}}active{{end}}" {{if eq .Data.Status "unresolved"}}aria-current="page"{{end}} href="/projects/{{$p.Slug}}?status=unresolved{{with .Data.Query}}&amp;q={{.}}{{end}}{{with .Data.Sort}}&amp;sort={{.}}{{end}}"><span class="note tab-side" aria-hidden="true">Side A</span><span>Unresolved ({{.Data.Counts.Unresolved}})</span></a>
+    <a class="tab {{if eq .Data.Status "resolved"}}active{{end}}" {{if eq .Data.Status "resolved"}}aria-current="page"{{end}} href="/projects/{{$p.Slug}}?status=resolved{{with .Data.Query}}&amp;q={{.}}{{end}}{{with .Data.Sort}}&amp;sort={{.}}{{end}}"><span class="note tab-side" aria-hidden="true">Side B</span><span>Resolved ({{.Data.Counts.Resolved}})</span></a>
+    <a class="tab {{if eq .Data.Status "ignored"}}active{{end}}" {{if eq .Data.Status "ignored"}}aria-current="page"{{end}} href="/projects/{{$p.Slug}}?status=ignored{{with .Data.Query}}&amp;q={{.}}{{end}}{{with .Data.Sort}}&amp;sort={{.}}{{end}}"><span>Ignored ({{.Data.Counts.Ignored}})</span></a>
+    <a class="tab {{if eq .Data.Status "all"}}active{{end}}" {{if eq .Data.Status "all"}}aria-current="page"{{end}} href="/projects/{{$p.Slug}}?status=all{{with .Data.Query}}&amp;q={{.}}{{end}}{{with .Data.Sort}}&amp;sort={{.}}{{end}}"><span>All ({{.Data.Counts.All}})</span></a>
+  </nav>
   <input type="hidden" name="status" value="{{.Data.Status}}">
-  <input type="search" name="q" value="{{.Data.Query}}" placeholder="Search title or culprit…">
-  <select name="sort" data-autosubmit>
+  <div class="search-field">
+    {{template "icon-search" .}}
+    <label class="sr-only" for="issue-search">Search issues by title or culprit</label>
+    <input id="issue-search" type="search" name="q" value="{{.Data.Query}}" placeholder="Search title or culprit…">
+  </div>
+  <span class="search-fox">{{template "fox-peek" .}}</span>
+  <label class="sr-only" for="issue-sort">Sort issues</label>
+  <select id="issue-sort" name="sort" data-autosubmit>
     <option value="" {{if eq .Data.Sort ""}}selected{{end}}>Last seen</option>
     <option value="first_seen" {{if eq .Data.Sort "first_seen"}}selected{{end}}>First seen</option>
     <option value="times_seen" {{if eq .Data.Sort "times_seen"}}selected{{end}}>Most events</option>
   </select>
-  <button>Filter</button>
+  <button type="submit">Filter</button>
 </form>
 
-<div class="list">
+<section class="tracklist issue-tracklist" aria-label="Issues, {{.Data.Status}}">
+{{if .Data.Issues}}
+  <div class="tracklist-head">
+    <span class="track-heading">Issue</span>
+    <span class="track-activity-heading">14-day activity</span>
+    <span class="track-events">Events{{if eq .Data.Sort "times_seen"}} ↓{{end}}</span>
+    <span class="track-seen">{{if eq .Data.Sort "first_seen"}}First seen ↓{{else if eq .Data.Sort "times_seen"}}Last seen{{else}}Last seen ↓{{end}}</span>
+    <span class="track-status">Status</span>
+  </div>
+{{end}}
 {{range .Data.Issues}}
-  <a class="row issue-row" href="/issues/{{.ID}}">
-    <span class="level level-{{.Level}}" title="{{.Level}}"></span>
-    <div class="issue-main">
-      <div class="issue-title">{{.Title}}</div>
-      <div class="muted small mono">{{.Culprit}}</div>
-    </div>
-    <div class="issue-stats">
-      <span class="count">{{.TimesSeen}}</span>
-      <span class="muted small" title="{{datetime .LastSeen}}">{{ago .LastSeen}}</span>
-      <span class="muted small" title="first seen {{datetime .FirstSeen}}">since {{ago .FirstSeen}}</span>
-    </div>
-    {{if ne .Status "unresolved"}}<span class="pill">{{.Status}}</span>{{end}}
+  {{$issue := .}}
+  <a class="track-row issue-track" href="/issues/{{.ID}}">
+    <span class="track-no"><span class="track-number" aria-hidden="true">{{.TrackLabel}}</span></span>
+    <span class="track-main">
+      <span class="track-title">{{.Title}}</span>
+      <span class="track-culprit">{{if .Culprit}}{{.Culprit}}{{else}}No culprit recorded{{end}}</span>
+      <span class="level-label level-{{.Level}}">{{.Level}}</span>
+    </span>
+    <span class="track-activity">
+      <span class="barcode" role="img" aria-label="14-day activity: {{.ActivitySummary}}">
+        <span class="bars barcode-bars" aria-hidden="true">{{range $idx, $count := .Activity}}<span class="bar {{index $issue.Bars $idx}}" title="{{$count}} {{plural $count "event" "events"}}"></span>{{end}}</span>
+        <span class="barcode-days" aria-hidden="true">{{range $.Data.DayLabels}}<span>{{.}}</span>{{end}}</span>
+      </span>
+    </span>
+    <span class="track-events" title="Lifetime events"><span class="figure">{{comma .TimesSeen}}</span><span class="track-cell-label">{{plural .TimesSeen "event" "events"}}</span></span>
+    <span class="track-seen"><time datetime="{{isodate .LastSeen}}" title="Last seen {{datetime .LastSeen}}">{{ago .LastSeen}}</time><span class="track-first" title="First seen {{datetime .FirstSeen}}">first {{ago .FirstSeen}}</span></span>
+    <span class="track-status"><span class="pill status-{{.Status}}">{{if eq .Status "unresolved"}}OPEN{{else if eq .Status "resolved"}}RESOLVED{{else}}IGNORED{{end}}</span>{{if .Regressed}} <span class="pill regression">REGRESSION</span>{{end}}</span>
   </a>
 {{else}}
-  <div class="empty">
+  <div class="empty issues-empty">
+    <span class="empty-fox">{{template "fox-sit" .}}</span>
     {{if .Data.Query}}
-      <p>No issues match “{{.Data.Query}}”.</p>
+      <h2>No matches on this tape.</h2>
+      <p class="muted">Nothing in {{.Data.Status}} matches “{{.Data.Query}}”. Try fewer words or another side.</p>
+      <a class="button small" href="/projects/{{$p.Slug}}?status={{.Data.Status}}">Clear search</a>
     {{else if eq .Data.Status "unresolved"}}
-      <p class="big">🦡 All clear, nothing unresolved.</p>
-      <p class="muted">Haven't wired up an SDK yet? Grab the DSN from <a href="/projects/{{$p.Slug}}/settings">settings</a> or send a test event.</p>
+      <h2>All clear. Side A is quiet.</h2>
+      <p class="muted">Nothing unresolved. The fox is keeping watch.</p>
+      <p class="small muted">No SDK connected yet? Grab the DSN from <a href="/projects/{{$p.Slug}}/settings">settings</a> or send a test event.</p>
     {{else}}
-      <p>Nothing here.</p>
+      <h2>Nothing on this side yet.</h2>
+      <p class="muted">No {{.Data.Status}} issues to play. Try another status above.</p>
+      <a class="button small" href="/projects/{{$p.Slug}}?status=all">Show all issues</a>
     {{end}}
   </div>
 {{end}}
-</div>
+</section>
 
 {{if or .Data.PrevURL .Data.NextURL}}
-<nav class="pager">
-  {{with .Data.PrevURL}}<a class="button" href="{{.}}">← Newer</a>{{end}}
-  <span class="muted">Page {{.Data.Page}}</span>
-  {{with .Data.NextURL}}<a class="button" href="{{.}}">Older →</a>{{end}}
+<nav class="pager issue-pager" aria-label="Issue pages">
+  <span>{{if .Data.PrevURL}}<a class="button small" href="{{.Data.PrevURL}}">← Newer</a>{{else}}<span class="button small disabled" aria-disabled="true">← Newer</span>{{end}}</span>
+  <span class="muted">{{.Data.TotalShown}} shown <span aria-hidden="true">/</span> Page {{.Data.Page}}</span>
+  <span>{{if .Data.NextURL}}<a class="button small" href="{{.Data.NextURL}}">Older →</a>{{else}}<span class="button small disabled" aria-disabled="true">Older →</span>{{end}}</span>
 </nav>
 {{end}}
 {{end}}

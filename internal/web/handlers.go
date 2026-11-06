@@ -12,6 +12,51 @@ import (
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
 )
 
+// ------------------------------------------------------------ view models
+
+// IssueView wraps store.Issue with 14-day activity barcode fields and 1-based
+// track numbering for the Night Tape issues list and issue detail views.
+// Embedding *store.Issue keeps all existing template expressions (.ID, .Title,
+// .Culprit, .Level, .Status, .FirstSeen, .LastSeen, .TimesSeen) working.
+type IssueView struct {
+	*store.Issue
+	TrackLabel      string                     // zero-padded 2-digit track label ("01", "02", ...)
+	Activity        [store.ActivityDays]int    // 14 daily event counts, oldest->newest (index 13 = today UTC)
+	Bars            [store.ActivityDays]string // 14 height classes ("h0", "h5", ..., "h100") matching barHeight
+	ActivityTotal   int                        // sum of events across the 14-day window
+	ActivitySummary string                     // accessible summary for barcode aria-label
+}
+
+// ProjectView wraps store.Project with 14-day activity barcode fields and
+// 1-based track numbering for the Night Tape projects page.
+// Embedding *store.Project keeps all existing template expressions (.ID, .Name,
+// .Slug, .Platform, .PublicKey, .CreatedAt, .UnresolvedCount, .LastSeen) working.
+type ProjectView struct {
+	*store.Project
+	TrackLabel      string                     // zero-padded 2-digit track label ("01", "02", ...)
+	Activity        [store.ActivityDays]int    // 14 daily event counts across all issues in project, oldest->newest
+	Bars            [store.ActivityDays]string // 14 height classes ("h0", "h5", ..., "h100")
+	ActivityTotal   int                        // sum of events across the 14-day window
+	ActivitySummary string                     // accessible summary for barcode aria-label
+}
+
+func buildActivityFields(counts []int) (act [store.ActivityDays]int, bars [store.ActivityDays]string, total int, summary string) {
+	peak := 0
+	for i := 0; i < store.ActivityDays && i < len(counts); i++ {
+		c := counts[i]
+		act[i] = c
+		total += c
+		if c > peak {
+			peak = c
+		}
+	}
+	for i, c := range act {
+		bars[i] = barHeight(c, peak)
+	}
+	summary = activitySummary(act)
+	return act, bars, total, summary
+}
+
 // -------------------------------------------------------------- auth pages
 
 func (s *Server) setupPage(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +155,28 @@ func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/projects/new", http.StatusSeeOther)
 		return
 	}
-	s.render(w, r, http.StatusOK, "projects", "Projects", projects)
+	pids := make([]int64, len(projects))
+	for i, p := range projects {
+		pids[i] = p.ID
+	}
+	actMap, err := s.Store.ProjectActivity(r.Context(), pids, store.ActivityDays, s.now())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	views := make([]ProjectView, len(projects))
+	for i, p := range projects {
+		act, bars, total, summary := buildActivityFields(actMap[p.ID])
+		views[i] = ProjectView{
+			Project:         p,
+			TrackLabel:      trackNumber(i + 1),
+			Activity:        act,
+			Bars:            bars,
+			ActivityTotal:   total,
+			ActivitySummary: summary,
+		}
+	}
+	s.render(w, r, http.StatusOK, "projects", "Projects", views)
 }
 
 var platforms = []struct{ ID, Name string }{
@@ -231,12 +297,13 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 	sort := q.Get("sort")
+	offset := (page - 1) * issuesPerPage
 	issues, err := s.Store.ListIssues(r.Context(), p.ID, store.IssueFilter{
 		Status: status,
 		Query:  q.Get("q"),
 		Sort:   sort,
 		Limit:  issuesPerPage + 1, // one extra to know if there's a next page
-		Offset: (page - 1) * issuesPerPage,
+		Offset: offset,
 	})
 	if err != nil {
 		s.serverError(w, r, err)
@@ -246,6 +313,36 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 	if hasNext {
 		issues = issues[:issuesPerPage]
 	}
+
+	issueIDs := make([]int64, len(issues))
+	for i, iss := range issues {
+		issueIDs[i] = iss.ID
+	}
+	actMap, err := s.Store.IssueActivity(r.Context(), issueIDs, store.ActivityDays, s.now())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	counts, err := s.Store.IssueStatusCounts(r.Context(), p.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	p.UnresolvedCount = counts.Unresolved
+
+	issueViews := make([]IssueView, len(issues))
+	for i, iss := range issues {
+		act, bars, total, summary := buildActivityFields(actMap[iss.ID])
+		issueViews[i] = IssueView{
+			Issue:           iss,
+			TrackLabel:      trackNumber(offset + i + 1),
+			Activity:        act,
+			Bars:            bars,
+			ActivityTotal:   total,
+			ActivitySummary: summary,
+		}
+	}
+
 	statusParam := string(status)
 	if statusParam == "" {
 		statusParam = "all"
@@ -263,12 +360,15 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 		return "/projects/" + p.Slug + "?" + v.Encode()
 	}
 	data := map[string]any{
-		"Project": p,
-		"Issues":  issues,
-		"Status":  statusParam,
-		"Query":   q.Get("q"),
-		"Sort":    sort,
-		"Page":    page,
+		"Project":    p,
+		"Issues":     issueViews,
+		"Status":     statusParam,
+		"Query":      q.Get("q"),
+		"Sort":       sort,
+		"Page":       page,
+		"Counts":     counts,
+		"DayLabels":  dayLabels(),
+		"TotalShown": len(issueViews),
 	}
 	if hasNext {
 		data["NextURL"] = pageURL(page + 1)
@@ -314,7 +414,35 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	data := map[string]any{"Issue": issue, "Project": p, "Stored": se}
+	recent, err := s.Store.ListIssueEvents(r.Context(), issue.ID, 15)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	daily, err := s.Store.DailyCounts(r.Context(), issue.ID, store.ActivityDays, s.now())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	act, bars, actTotal, actSummary := buildActivityFields(daily)
+	iv := &IssueView{
+		Issue:           issue,
+		TrackLabel:      "01",
+		Activity:        act,
+		Bars:            bars,
+		ActivityTotal:   actTotal,
+		ActivitySummary: actSummary,
+	}
+	data := map[string]any{
+		"Issue":           iv,
+		"Project":         p,
+		"Recent":          recent,
+		"Activity":        act,
+		"Bars":            bars,
+		"ActivityTotal":   actTotal,
+		"ActivitySummary": actSummary,
+		"DayLabels":       dayLabels(),
+	}
 	if se != nil {
 		older, newer, err := s.Store.AdjacentEvents(r.Context(), se)
 		if err != nil {
@@ -324,18 +452,6 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 		data["Event"] = se.Event
 		data["Older"], data["Newer"] = older, newer
 	}
-	recent, err := s.Store.ListIssueEvents(r.Context(), issue.ID, 15)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	daily, err := s.Store.DailyCounts(r.Context(), issue.ID, 14, time.Now())
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	data["Recent"] = recent
-	data["Daily"] = daily
 	s.render(w, r, http.StatusOK, "issue", issue.Title, data)
 }
 

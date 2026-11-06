@@ -34,6 +34,7 @@ type Issue struct {
 	FirstSeen   time.Time
 	LastSeen    time.Time
 	TimesSeen   int
+	Regressed   bool // reopened by a new event after being resolved; cleared on the next status change
 }
 
 // IngestResult describes what happened to an incoming event.
@@ -95,7 +96,8 @@ func (s *Store) SaveEvent(ctx context.Context, projectID int64, ev *event.Event,
 				title      = ?,
 				culprit    = ?,
 				level      = ?,
-				status     = CASE WHEN status = 'resolved' THEN 'unresolved' ELSE status END
+				status     = CASE WHEN status = 'resolved' THEN 'unresolved' ELSE status END,
+				regressed  = CASE WHEN status = 'resolved' THEN 1 ELSE regressed END
 			WHERE id = ?`,
 			ms(received), ev.Title(), ev.Culprit(), ev.Level, res.IssueID)
 		if err != nil {
@@ -113,19 +115,21 @@ func (s *Store) SaveEvent(ctx context.Context, projectID int64, ev *event.Event,
 	return res, tx.Commit()
 }
 
-const issueCols = `id, project_id, fingerprint, title, culprit, level, status, first_seen, last_seen, times_seen`
+const issueCols = `id, project_id, fingerprint, title, culprit, level, status, first_seen, last_seen, times_seen, regressed`
 
 func scanIssue(sc interface{ Scan(...any) error }) (*Issue, error) {
 	var i Issue
 	var first, last int64
+	var regressed int
 	var status string
-	if err := sc.Scan(&i.ID, &i.ProjectID, &i.Fingerprint, &i.Title, &i.Culprit, &i.Level, &status, &first, &last, &i.TimesSeen); err != nil {
+	if err := sc.Scan(&i.ID, &i.ProjectID, &i.Fingerprint, &i.Title, &i.Culprit, &i.Level, &status, &first, &last, &i.TimesSeen, &regressed); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
 	i.Status = IssueStatus(status)
+	i.Regressed = regressed != 0
 	i.FirstSeen, i.LastSeen = fromMS(first), fromMS(last)
 	return &i, nil
 }
@@ -192,7 +196,7 @@ func (s *Store) SetIssueStatus(ctx context.Context, id int64, st IssueStatus) er
 	if !st.Valid() {
 		return errors.New("invalid status")
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE issues SET status = ? WHERE id = ?`, string(st), id)
+	_, err := s.db.ExecContext(ctx, `UPDATE issues SET status = ?, regressed = 0 WHERE id = ?`, string(st), id)
 	return err
 }
 
@@ -286,27 +290,17 @@ func (s *Store) ListIssueEvents(ctx context.Context, issueID int64, limit int) (
 }
 
 // DailyCounts returns per-day event counts for the issue over the last n
-// days (oldest first), for the little activity chart.
+// days (oldest first, ending with the UTC day containing now), for the
+// activity chart.
 func (s *Store) DailyCounts(ctx context.Context, issueID int64, days int, now time.Time) ([]int, error) {
-	start := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -(days - 1))
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT (received_at - ?) / 86400000 AS d, COUNT(*) FROM events
-		WHERE issue_id = ? AND received_at >= ? GROUP BY d`, ms(start), issueID, ms(start))
+	if days <= 0 {
+		days = ActivityDays
+	}
+	m, err := s.IssueActivity(ctx, []int64{issueID}, days, now)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	counts := make([]int, days)
-	for rows.Next() {
-		var d, c int
-		if err := rows.Scan(&d, &c); err != nil {
-			return nil, err
-		}
-		if d >= 0 && d < days {
-			counts[d] = c
-		}
-	}
-	return counts, rows.Err()
+	return m[issueID], nil
 }
 
 // Prune deletes events received before cutoff and any issues left without

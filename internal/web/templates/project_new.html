@@ -1,17 +1,31 @@
 {{define "content"}}
-<section class="card narrow">
-  <h1>New project</h1>
-  <p class="muted">A project is one app or service. Each gets its own DSN.</p>
-  {{with .Data.Error}}<p class="alert error">{{.}}</p>{{end}}
+<header class="pagehead">
+  <div class="pagehead-copy">
+    <span class="note tape-note" aria-hidden="true">New tape</span>
+    <h1>New project</h1>
+    <p class="mono muted">One app, one DSN. Name it and pick a platform.</p>
+  </div>
+</header>
+
+<section class="panel admin-panel narrow-panel">
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/projects/new" class="stack">
     <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-    <label>Name <input name="name" required maxlength="100" placeholder="my-web-app" autofocus></label>
-    <label>Platform
-      <select name="platform">
+    <label for="project-name">Name
+      <input id="project-name" name="name" required maxlength="100" placeholder="checkout-api" autocomplete="off" autofocus>
+      <span class="help">Shown on the tracklist. Up to 100 characters.</span>
+    </label>
+    <label for="project-platform">Platform
+      <select id="project-platform" name="platform">
         {{range .Data.Platforms}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
       </select>
+      <span class="help">Picks the SDK snippet on the settings page. You can still use any Sentry SDK.</span>
     </label>
-    <button class="primary">Create project</button>
+    <div class="form-actions">
+      <button class="primary" type="submit">Create project</button>
+      <a class="button" href="/">Cancel</a>
+    </div>
   </form>
+  <p class="note form-note" aria-hidden="true">one DSN per burrow</p>
 </section>
 {{end}}

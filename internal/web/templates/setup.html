@@ -1,13 +1,39 @@
 {{define "content"}}
-<section class="card narrow">
-  <h1>Welcome to Burrow 🦡</h1>
-  <p class="muted">Create the admin account to get started. This page disappears once an account exists.</p>
-  {{with .Data.Error}}<p class="alert error">{{.}}</p>{{end}}
-  <form method="post" action="/setup" class="stack">
-    <label>Email <input type="email" name="email" value="{{.Data.Email}}" required autofocus autocomplete="username"></label>
-    <label>Password <input type="password" name="password" minlength="10" maxlength="72" required autocomplete="new-password"></label>
-    <label>Confirm password <input type="password" name="password2" minlength="10" maxlength="72" required autocomplete="new-password"></label>
-    <button class="primary">Create account</button>
+<section class="auth-card">
+  <div class="auth-fox" aria-hidden="true">
+    {{template "fox-peek" .}}
+    <span class="note auth-note">
+      <svg class="auth-note-arrow" viewBox="0 0 34 22" aria-hidden="true"><path d="M32 4C22 7 13 12 3 18M3 18l8 1M3 18l4-7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>one binary.<br>one file.<br><span class="auth-note-underline">that's it.</span></span>
+    </span>
+  </div>
+  <h1>Dig in.</h1>
+  <p class="auth-lead">Create the admin account for your Burrow.</p>
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/setup" class="stack auth-form">
+    <label class="auth-field" for="setup-email">
+      <svg class="icon auth-field-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="4" width="16" height="12" rx="1.5"/><path d="m2.5 5 7.5 6 7.5-6"/></svg>
+      <span class="auth-field-body">
+        <span class="auth-field-label">Email</span>
+        <input id="setup-email" type="email" name="email" value="{{.Data.Email}}" placeholder="admin@yourdomain.com" required autofocus autocomplete="username" inputmode="email" spellcheck="false">
+      </span>
+    </label>
+    <label class="auth-field" for="setup-password">
+      <svg class="icon auth-field-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>
+      <span class="auth-field-body">
+        <span class="auth-field-label">Password <span class="muted">(min 10 chars)</span></span>
+        <input id="setup-password" type="password" name="password" placeholder="••••••••••" minlength="10" maxlength="72" required autocomplete="new-password">
+      </span>
+    </label>
+    <label class="auth-field" for="setup-password2">
+      <svg class="icon auth-field-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>
+      <span class="auth-field-body">
+        <span class="auth-field-label">Confirm password</span>
+        <input id="setup-password2" type="password" name="password2" placeholder="••••••••••" minlength="10" maxlength="72" required autocomplete="new-password">
+      </span>
+    </label>
+    <button class="auth-submit" type="submit">Create account →</button>
   </form>
+  <p class="small muted auth-foot">This page disappears once an account exists. One admin. That's the whole team.</p>
 </section>
 {{end}}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
@@ -16,10 +17,16 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/ingest"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
 )
+
+// testNow is the fixed clock for rendered activity, so tests can't flake
+// around UTC midnight.
+var testNow = time.Date(2026, 3, 14, 12, 0, 0, 0, time.UTC)
 
 type harness struct {
 	t      *testing.T
@@ -37,7 +44,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Cleanup(func() { st.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv := &Server{Store: st, Ingest: &ingest.Handler{Store: st, Log: log}, Log: log, Version: "test"}
+	srv := &Server{Store: st, Ingest: &ingest.Handler{Store: st, Log: log}, Log: log, Version: "test", Now: func() time.Time { return testNow }}
 	ts := httptest.NewUnstartedServer(nil)
 	ts.Start()
 	t.Cleanup(ts.Close)
@@ -217,8 +224,23 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("status = %s", i.Status)
 	}
 	h.ingest("/api/1/store/?sentry_key="+p.PublicKey, []byte(ev(strings.Repeat("d", 32), "again")), nil)
-	if i, _ := h.st.IssueByID(context.Background(), issue.ID); i.Status != store.StatusUnresolved {
-		t.Errorf("regression should reopen, status = %s", i.Status)
+	if i, _ := h.st.IssueByID(context.Background(), issue.ID); i.Status != store.StatusUnresolved || !i.Regressed {
+		t.Errorf("regression should reopen and flag Regressed, got %s regressed=%v", i.Status, i.Regressed)
+	}
+	if _, body := h.get("/projects/web-app"); !strings.Contains(body, "REGRESSION") {
+		t.Errorf("issues list should show REGRESSION pill for a regressed issue")
+	}
+	if _, body := h.get(fmt.Sprintf("/issues/%d", issue.ID)); !strings.Contains(body, "REGRESSION") {
+		t.Errorf("issue page should show REGRESSION pill for a regressed issue")
+	}
+	// A manual status change clears the flag.
+	h.post(fmt.Sprintf("/issues/%d/status", issue.ID), url.Values{"status": {"ignored"}})
+	if i, _ := h.st.IssueByID(context.Background(), issue.ID); i.Regressed {
+		t.Errorf("Regressed should clear on manual status change")
+	}
+	h.post(fmt.Sprintf("/issues/%d/status", issue.ID), url.Values{"status": {"unresolved"}})
+	if _, body := h.get(fmt.Sprintf("/issues/%d", issue.ID)); strings.Contains(body, "REGRESSION") {
+		t.Errorf("REGRESSION pill should be gone after status change")
 	}
 
 	// Test-event button and its rendered issue page (exercises every panel).
@@ -255,6 +277,169 @@ func TestSafeNext(t *testing.T) {
 	} {
 		if got := safeNext(in); got != want {
 			t.Errorf("safeNext(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestNightTapeDataAndFuncs(t *testing.T) {
+	// 1. Unit tests for template funcs
+	labels := dayLabels()
+	if len(labels) != 14 || labels[0] != "01" || labels[13] != "14" {
+		t.Fatalf("unexpected dayLabels(): %v", labels)
+	}
+	if got := trackNumber(1); got != "01" {
+		t.Errorf("trackNumber(1) = %q, want 01", got)
+	}
+	if got := trackNumber(51); got != "51" {
+		t.Errorf("trackNumber(51) = %q, want 51", got)
+	}
+	if got := comma(1284); got != "1,284" {
+		t.Errorf("comma(1284) = %q, want 1,284", got)
+	}
+	if got := comma(0); got != "0" {
+		t.Errorf("comma(0) = %q, want 0", got)
+	}
+	if got := activitySummary([]int{}); got != "0 events in the last 14 days" {
+		t.Errorf("activitySummary(empty) = %q", got)
+	}
+	var sampleAct [14]int
+	sampleAct[0] = 3
+	sampleAct[11] = 9 // day 12 (1-based)
+	sampleAct[13] = 25
+	if got := activitySummary(sampleAct); got != "37 events in the last 14 days, peak 25 on day 14" {
+		t.Errorf("activitySummary(sampleAct) = %q", got)
+	}
+	if got := maxInt(sampleAct); got != 25 {
+		t.Errorf("maxInt([14]int) = %d, want 25", got)
+	}
+	bh := barHeights(sampleAct)
+	if len(bh) != 14 || bh[13] != "h100" || bh[1] != "h0" || bh[0] != "h15" {
+		t.Errorf("barHeights(sampleAct) = %v", bh)
+	}
+
+	// 2. Handler view model and template execution verification
+	h := newHarness(t)
+	h.post("/setup", url.Values{"email": {"fox@burrow.test"}, "password": {"long-enough-pw"}, "password2": {"long-enough-pw"}})
+	h.get("/projects/new")
+	h.post("/projects/new", url.Values{"name": {"Night Tape App"}, "platform": {"go"}})
+
+	ctx := context.Background()
+	p, err := h.st.ProjectBySlug(ctx, "night-tape-app")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	now := testNow
+	// Create 52 distinct issues to test pagination (track label 51 on page 2),
+	// status counts, and 14-day activity bars.
+	var firstIssueID int64
+	for i := 1; i <= 52; i++ {
+		ev := &event.Event{
+			EventID:     event.NewEventID(),
+			Timestamp:   now,
+			Level:       "error",
+			Fingerprint: []string{fmt.Sprintf("fp-issue-%03d", i)},
+			Message:     fmt.Sprintf("Unique issue label %03d", i),
+		}
+		// Give issue 52 multiple events across days (index 11, label "12", is 2 days ago; index 13, label "14", is today)
+		recv := now.Add(time.Duration(i) * time.Second)
+		res, err := h.st.SaveEvent(ctx, p.ID, ev, recv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i == 1 {
+			firstIssueID = res.IssueID
+		}
+		if i == 52 {
+			// Add 2 more events 2 days ago (day index 11, label "12")
+			for j := 0; j < 2; j++ {
+				evOld := &event.Event{
+					EventID:     event.NewEventID(),
+					Timestamp:   now.Add(-2 * 24 * time.Hour),
+					Level:       "error",
+					Fingerprint: ev.Fingerprint,
+					Message:     ev.Message,
+				}
+				if _, err := h.st.SaveEvent(ctx, p.ID, evOld, now.Add(-2*24*time.Hour)); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	// Resolve issue 1 and ignore issue 2
+	if err := h.st.SetIssueStatus(ctx, firstIssueID, store.StatusResolved); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.st.SetIssueStatus(ctx, firstIssueID+1, store.StatusIgnored); err != nil {
+		t.Fatal(err)
+	}
+
+	// Render issues list (all statuses, page 1 and page 2)
+	if code, body := h.get("/projects/night-tape-app?status=all&page=1"); code != 200 || !strings.Contains(body, "Unique issue label 052") {
+		t.Fatalf("page 1 failed: %d", code)
+	}
+	if code, body := h.get("/projects/night-tape-app?status=all&page=2"); code != 200 || !strings.Contains(body, "Unique issue label 001") {
+		t.Fatalf("page 2 failed: %d", code)
+	}
+
+	// Render projects list and issue detail
+	if code, body := h.get("/"); code != 200 || !strings.Contains(body, "50 unresolved") {
+		t.Fatalf("projects list failed: %d\n%s", code, body)
+	}
+	if code, body := h.get(fmt.Sprintf("/issues/%d", firstIssueID+51)); code != 200 || !strings.Contains(body, "h100") {
+		t.Fatalf("issue detail failed: %d", code)
+	}
+
+	// Verify custom template expressions against the exact handler data shapes
+	checkTpl := template.Must(template.New("check").Funcs(funcs).Parse(`
+		{{range .Data.Issues}}[track={{.TrackLabel}} total={{.ActivityTotal}} bar11={{index .Bars 11}} bar13={{index .Bars 13}} sum={{.ActivitySummary}}]{{end}}
+		counts={{.Data.Counts.Unresolved}}/{{.Data.Counts.Resolved}}/{{.Data.Counts.Ignored}}/{{.Data.Counts.All}}
+		days={{len .Data.DayLabels}}
+	`))
+	issuesPage2, err := h.st.ListIssues(ctx, p.ID, store.IssueFilter{Limit: 50, Offset: 50})
+	if err != nil || len(issuesPage2) != 2 {
+		t.Fatalf("ListIssues page 2: %v len=%d", err, len(issuesPage2))
+	}
+	actMap, err := h.st.IssueActivity(ctx, []int64{firstIssueID + 51, issuesPage2[0].ID}, store.ActivityDays, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts, err := h.st.IssueStatusCounts(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	act52, bars52, total52, sum52 := buildActivityFields(actMap[firstIssueID+51])
+	iv52 := IssueView{
+		Issue:           &store.Issue{ID: firstIssueID + 51, Title: "52"},
+		TrackLabel:      trackNumber(51),
+		Activity:        act52,
+		Bars:            bars52,
+		ActivityTotal:   total52,
+		ActivitySummary: sum52,
+	}
+	var buf strings.Builder
+	err = checkTpl.Execute(&buf, pageData{
+		Data: map[string]any{
+			"Issues":    []IssueView{iv52},
+			"Counts":    counts,
+			"DayLabels": dayLabels(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("template check execute failed: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"track=51",
+		"total=3",
+		"bar11=h100",
+		"bar13=h50",
+		"sum=3 events in the last 14 days, peak 2 on day 12",
+		"counts=50/1/1/52",
+		"days=14",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("template output missing %q; got:\n%s", want, out)
 		}
 	}
 }

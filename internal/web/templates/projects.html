@@ -1,20 +1,45 @@
 {{define "content"}}
-<div class="pagehead">
-  <h1>Projects</h1>
-  <a class="button primary" href="/projects/new">+ New project</a>
-</div>
-<div class="list">
-{{range .Data}}
-  <a class="row project-row" href="/projects/{{.Slug}}">
-    <div>
-      <strong>{{.Name}}</strong>
-      <span class="pill">{{if .Platform}}{{.Platform}}{{else}}other{{end}}</span>
-    </div>
-    <div class="row-meta">
-      <span class="{{if .UnresolvedCount}}count-hot{{else}}muted{{end}}">{{.UnresolvedCount}} unresolved</span>
-      <span class="muted">last event {{ago .LastSeen}}</span>
-    </div>
+<header class="pagehead projects-pagehead">
+  <div class="pagehead-copy">
+    <span class="note tape-note" aria-hidden="true">Side A</span>
+    <h1>Projects</h1>
+    <p class="mono muted">{{len .Data}} {{plural (len .Data) "tape" "tapes"}} in this burrow. Pick one to play.</p>
+  </div>
+  <a class="button" href="/projects/new">New project <span aria-hidden="true">+</span></a>
+</header>
+
+<section class="tracklist project-tracklist" aria-label="Projects">
+  <div class="tracklist-head project-tracklist-head">
+    <span class="track-heading">Project</span>
+    <span class="track-activity-heading">14-day activity</span>
+    <span class="track-events">Unresolved</span>
+    <span class="track-seen">Last seen</span>
+    <span class="track-chevron-head" aria-hidden="true"></span>
+  </div>
+  {{range .Data}}
+  {{$p := .}}
+  <a class="track-row project-track" href="/projects/{{.Slug}}">
+    <span class="track-no"><span class="track-number" aria-hidden="true">{{.TrackLabel}}</span></span>
+    <span class="track-main">
+      <span class="track-title">{{.Name}}</span>
+      <span class="track-culprit">{{if .UnresolvedCount}}{{comma .UnresolvedCount}} unresolved{{else}}all clear{{end}} <span aria-hidden="true">·</span> {{if .Platform}}{{.Platform}}{{else}}other{{end}}</span>
+      {{if not .UnresolvedCount}}<span class="note all-clear" aria-hidden="true"><svg class="all-clear-arrow" viewBox="0 0 28 20" aria-hidden="true"><path d="M26 16C16 17 8 13 4 4M4 4l-2 6M4 4l6 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>all clear</span>{{end}}
+    </span>
+    <span class="track-activity">
+      <span class="barcode" role="img" aria-label="14-day activity: {{.ActivitySummary}}">
+        <span class="bars barcode-bars" aria-hidden="true">{{range $idx, $count := .Activity}}<span class="bar {{index $p.Bars $idx}}" title="{{$count}} {{plural $count "event" "events"}}"></span>{{end}}</span>
+        <span class="barcode-days" aria-hidden="true">{{range dayLabels}}<span>{{.}}</span>{{end}}</span>
+      </span>
+    </span>
+    <span class="track-events"><span class="figure project-count {{if .UnresolvedCount}}count-hot{{end}}">{{comma .UnresolvedCount}}</span><span class="track-cell-label">unresolved</span></span>
+    <span class="track-seen"><time datetime="{{isodate .LastSeen}}" title="Last event {{datetime .LastSeen}}">{{ago .LastSeen}}</time><span class="track-cell-label">last event</span></span>
+    <span class="track-chevron" aria-hidden="true"><svg class="icon" viewBox="0 0 20 20"><path d="m7 4 6 6-6 6"/></svg></span>
   </a>
-{{end}}
-</div>
+  {{end}}
+</section>
+
+<aside class="projects-fox" aria-hidden="true">
+  {{template "fox-sit" .}}
+  <span class="note">keeping watch</span>
+</aside>
 {{end}}

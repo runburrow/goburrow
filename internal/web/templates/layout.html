@@ -3,28 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <title>{{.Title}} · Burrow</title>
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/pages-issues.css">
+<link rel="stylesheet" href="/static/pages-admin.css">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <script src="/static/app.js" defer></script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="topbar">
-  <a class="brand" href="/"><img src="/static/favicon.svg" alt="" width="22" height="22"> Burrow</a>
+  <a class="brand" href="/" aria-label="Burrow projects">{{template "fox-mark" .}}<span class="brand-wordmark">BURROW</span></a>
+  <span class="brand-caption">Self-hosted<br>Error tracker</span>
   {{if .Session}}
-  <nav>
-    <a href="/">Projects</a>
-    <span class="muted">{{.Session.User.Email}}</span>
-    <form method="post" action="/logout" class="inline">
-      <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-      <button class="link">Log out</button>
-    </form>
-  </nav>
+  <div class="project-crumb">
+    {{with .Nav.Project}}<a href="/projects/{{.Slug}}">{{.Name}}</a>{{else}}<a href="/">Projects</a>{{end}}
+    <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+  </div>
   {{end}}
+  <div class="signal-strip">{{template "signal-strip" .}}</div>
 </header>
-<main>
+<div class="app-shell {{if not .Session}}auth-shell{{end}}">
+{{if .Session}}
+  <aside class="rail">
+    <nav class="rail-nav" aria-label="Main navigation">
+      {{with .Nav.Project}}
+      <a class="rail-item {{if or (eq $.Nav.Page "issues") (eq $.Nav.Page "issue")}}active{{end}}" {{if or (eq $.Nav.Page "issues") (eq $.Nav.Page "issue")}}aria-current="page"{{end}} href="/projects/{{.Slug}}">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 18H2Z M12 9v5"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>
+        <span>Issues</span>
+      </a>
+      {{end}}
+      <a class="rail-item {{if or (eq .Nav.Page "projects") (eq .Nav.Page "project_new")}}active{{end}}" {{if or (eq .Nav.Page "projects") (eq .Nav.Page "project_new")}}aria-current="page"{{end}} href="/">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5 M4 12c0 4 16 4 16 0"/></svg>
+        <span>Projects</span>
+      </a>
+      {{with .Nav.Project}}
+      <a class="rail-item {{if eq $.Nav.Page "project_settings"}}active{{end}}" {{if eq $.Nav.Page "project_settings"}}aria-current="page"{{end}} href="/projects/{{.Slug}}/settings">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3 1-2h4l1 2 3 2 2 .1 2 3-1 2v4l1 2-2 3-2 .1-3 2-1 2h-4l-1-2-3-2-2-.1-2-3 1-2v-4l-1-2 2-3L6 5Z" transform="translate(1 1) scale(.9)"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Settings</span>
+      </a>
+      {{end}}
+    </nav>
+    <div class="rail-mascot">{{template "fox-peek" .}}<span class="note" aria-hidden="true">Dig in.<br>Keep watch.</span></div>
+    <div class="rail-account">
+      <span class="muted" title="{{.Session.User.Email}}">{{.Session.User.Email}}</span>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+        <button class="link">Log out</button>
+      </form>
+    </div>
+  </aside>
+{{end}}
+<main class="main" id="main" tabindex="-1">
 {{template "content" .}}
 </main>
-<footer class="muted">Burrow {{.Version}} · open-source error tracking</footer>
+</div>
+<footer class="app-footer">
+  <span>BURROW {{.Version}}</span>
+  <span class="footer-barcode" aria-hidden="true"></span>
+  <span>Open-source error tracking</span>
+</footer>
 </body>
 </html>

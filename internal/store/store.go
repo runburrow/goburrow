@@ -24,15 +24,7 @@ type Store struct {
 // Open opens (creating if needed) the SQLite database at path and applies
 // any pending migrations.
 func Open(path string) (*Store, error) {
-	q := url.Values{}
-	q.Add("_pragma", "journal_mode(WAL)")
-	q.Add("_pragma", "busy_timeout(10000)")
-	q.Add("_pragma", "foreign_keys(1)")
-	q.Add("_pragma", "synchronous(NORMAL)")
-	// Write transactions take the lock up front, avoiding SQLITE_BUSY on
-	// read->write lock upgrades under concurrent ingestion.
-	q.Add("_txlock", "immediate")
-	db, err := sql.Open("sqlite", "file:"+path+"?"+q.Encode())
+	db, err := sql.Open("sqlite", dsnFor(path))
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +35,19 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	return s, nil
+}
+
+// dsnFor builds the SQLite DSN (pragmas included) for a database file.
+func dsnFor(path string) string {
+	q := url.Values{}
+	q.Add("_pragma", "journal_mode(WAL)")
+	q.Add("_pragma", "busy_timeout(10000)")
+	q.Add("_pragma", "foreign_keys(1)")
+	q.Add("_pragma", "synchronous(NORMAL)")
+	// Write transactions take the lock up front, avoiding SQLITE_BUSY on
+	// read->write lock upgrades under concurrent ingestion.
+	q.Add("_txlock", "immediate")
+	return "file:" + path + "?" + q.Encode()
 }
 
 func (s *Store) Close() error { return s.db.Close() }
@@ -100,6 +105,15 @@ var migrations = []string{
 	);
 	CREATE INDEX events_by_issue ON events(issue_id, received_at DESC, id DESC);
 	CREATE INDEX events_by_received ON events(received_at);`,
+
+	// 2: per-project daily activity (projects list barcode). Lets
+	// ProjectActivity answer from this index alone (project_id, received_at)
+	// instead of scanning every recent event across all projects.
+	`CREATE INDEX events_by_project_received ON events(project_id, received_at);`,
+
+	// 3: remember that an issue came back after being resolved, until the
+	// user next sets its status.
+	`ALTER TABLE issues ADD COLUMN regressed INTEGER NOT NULL DEFAULT 0;`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {
