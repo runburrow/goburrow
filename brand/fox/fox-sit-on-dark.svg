@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 176" width="200" height="176" role="img" aria-label="Burrow fox, sitting">
+<title>Burrow fox, sitting</title>
+<defs><mask id="eyes" maskUnits="userSpaceOnUse" x="0" y="0" width="200.0" height="176.0"><rect width="200.0" height="176.0" fill="#fff"/><circle cx="74.3" cy="58.4" r="4.8" fill="#000"/><circle cx="101.7" cy="58.4" r="4.8" fill="#000"/></mask></defs>
+<g mask="url(#eyes)">
+<g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M115 132.2V158.4M117.5 128.3V160M120 124.3V160.9M122.5 120.3V161.3M124.9 116.3V161.4M127.4 112.4V161M129.9 108.7V160.4M132.4 105V159.4M134.9 101.5V158.1M137.4 98.2V156.5M139.8 95V154.6M142.3 92V152.3M144.8 89.3V149.7M147.3 86.7V146.8M149.8 84.4V143.6M152.3 82.2V140.1M154.7 80.3V136.3M157.2 78.6V132.3M159.7 77V127.9M162.2 75.6V123.3M164.7 74.4V118.5"/><path stroke="#f2efe6" fill="none" stroke-width="1.2" stroke-linecap="round" d="M167.2 73.3V113.5M169.6 72.2V108.3M172.1 71.3V103M174.6 70.4V97.5M177.1 69.6V91.9M179.6 68.7V86.3"/></g>
+  <g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M50.2 114.1V146.3M52.9 110.5V150.1M58.3 103.2V157.6M61 99.5V160M63.7 95.9V160M69.1 88.6V160M71.8 85V145M74.5 82V145M79.9 84.2V145M82.6 85.9V145M85.3 87.5V145M90.7 87.5V145M93.4 85.9V145M96.1 84.2V145M101.5 82V145M104.2 85V145M106.9 88.6V160M112.3 95.9V160M115 99.5V160M117.7 103.2V157.6M123.1 110.5V150.1M125.8 114.1V146.3"/><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M55.6 106.8V153.8M66.4 92.3V160M77.2 82.5V145M88 89.2V145M98.8 82.5V145M109.6 92.3V160M120.4 106.8V153.8"/></g>
+  <g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M84 148V160M80.8 148V159.5M77.6 148V159.5M74.4 148V160M92 148V160M95.2 148V159.5M98.4 148V159.5M101.6 148V160"/></g>
+  <g>
+    <g><g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M52.9 38.7V42M55.6 30.3V41.1M58.3 22V40.2M61 13.6V39.4M63.7 9.3V38.5M66.4 13.2V37.6M69.1 17.1V36.8M71.8 20.9V35.9M74.5 24.8V35M77.2 28.7V34.2"/></g><g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M98.8 28.7V34.2M101.5 24.8V35M104.2 20.9V35.9M106.9 17.1V36.8M109.6 13.2V37.6M112.3 9.3V38.5M115 13.6V39.4M117.7 22V40.2M120.4 30.3V41.1M123.1 38.7V42"/></g></g>
+    <g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M52.9 43.8V64.8M55.6 43V66.3M58.3 42.1V67.9M63.7 40.4V71M66.4 39.5V72.6M69.1 38.7V74.1M74.5 36.9V77.3M77.2 36.1V79M79.9 35.3V80.7M85.3 35.3V84M88 35.3V85.7M90.7 35.3V84M96.1 35.3V80.7M98.8 36.1V79M101.5 36.9V77.3M106.9 38.7V74.1M109.6 39.5V72.6M112.3 40.4V71M117.7 42.1V67.9M120.4 43V66.3M123.1 43.8V64.8"/><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M50.2 44.7V63.2M61 41.3V69.5M71.8 37.8V75.7M82.6 35.3V82.4M93.4 35.3V82.4M104.2 37.8V75.7M115 41.3V69.5M125.8 44.7V63.2"/></g>
+    <path stroke="#f2efe6" fill="none" stroke-width="1.2" stroke-linecap="round" d="M52.9 38.7V39.8M55.6 30.3V33.8M58.3 22.0V27.8M61 13.6V21.9M63.7 9.3V18.6M66.4 13.2V21.0M69.1 17.1V23.4M71.8 20.9V25.7M74.5 24.8V28.1M77.2 28.7V30.5M98.8 28.7V30.5M101.5 24.8V28.1M104.2 20.9V25.7M106.9 17.1V23.4M109.6 13.2V21.0M112.3 9.3V18.6M115 13.6V21.9M117.7 22.0V27.8M120.4 30.3V33.8M123.1 38.7V39.8"/>
+    <path stroke="#f2efe6" fill="none" stroke-width="1.2" stroke-linecap="round" d="M47.5 52V70M44.8 56V69M42.1 60V68M128.5 52V70M131.2 56V69M133.9 60V68"/>
+    <ellipse fill="#f2efe6" cx="88" cy="82" rx="4.4" ry="3.4"/>
+    <g></g>
+  </g>
+</g>
+<g><circle fill="#f2efe6" cx="74.3" cy="58.4" r="2.5"/><circle fill="#f2efe6" cx="101.7" cy="58.4" r="2.5"/></g>
+<ellipse fill="none" stroke="#a9a79e" stroke-width="1.3" stroke-dasharray="3 3" cx="100" cy="161" rx="90" ry="9"/>
+  <path stroke="#a9a79e" fill="none" stroke-width="1.2" stroke-linecap="round" d="M12 163q8-10 16 0M172 163q8-10 16 0M34 170h8M158 170h8"/>
+  <path stroke="#a9a79e" fill="none" stroke-width="1.2" stroke-linecap="round" d="M6 158l-3-9M13 156l-1-10M20 156l3-7M180 156l-2-8M187 157l1-11M194 158l3-9"/>
+</svg>

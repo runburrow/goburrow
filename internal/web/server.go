@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -130,6 +131,7 @@ type pageData struct {
 	Session *store.Session
 	Version string
 	Asset   string
+	Origin  string // public scheme://host, for absolute URLs (link previews)
 	Flash   string
 	Nav     navigationData
 	Data    any
@@ -141,7 +143,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 		http.Error(w, "unknown page "+page, http.StatusInternalServerError)
 		return
 	}
-	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Asset: s.assetTag, Data: data, Flash: r.URL.Query().Get("flash")}
+	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Asset: s.assetTag, Origin: s.origin(), Data: data, Flash: r.URL.Query().Get("flash")}
 	pd.Nav.Page = page
 	if m, ok := data.(map[string]any); ok {
 		pd.Nav.Project, _ = m["Project"].(*store.Project)
@@ -324,6 +326,19 @@ func (s *Server) ReportURL(p *store.Project) string {
 	u := *s.BaseURL
 	u.Path = strings.TrimRight(u.Path, "/") + fmt.Sprintf("/api/%d/report", p.ID)
 	return u.String()
+}
+
+// origin is the public scheme://host[/path] the dashboard is served at.
+func (s *Server) origin() string {
+	if s.BaseURL == nil {
+		return ""
+	}
+	return strings.TrimRight(s.BaseURL.String(), "/")
+}
+
+func init() {
+	// Go's MIME table doesn't know web app manifests.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
 }
 
 // hashStatic fingerprints the embedded static files. Release builds change

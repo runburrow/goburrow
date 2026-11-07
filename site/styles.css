@@ -50,6 +50,9 @@ code, pre, kbd { font-family: var(--mono); }
 .button:hover { background: var(--surface-2); border-color: var(--text); text-decoration: none; }
 .button.primary { background: var(--text); border-color: var(--text); color: var(--bg); }
 .button.primary:hover { background: color-mix(in srgb, var(--text) 82%, var(--blue)); }
+/* A placeholder for an action that isn't live yet: dashed like the
+   "Sample data" tag, muted, and inert (no link, not focusable). */
+.button.soon, .button.soon:hover { border-style: dashed; border-color: var(--rule); background: transparent; color: var(--muted); cursor: default; }
 .command { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 6px 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--code-bg); font: .9rem/1.4 var(--mono); }
 .command code::before { content: "$ "; color: var(--muted); }
 .command code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; }

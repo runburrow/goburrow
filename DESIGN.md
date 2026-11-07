@@ -324,7 +324,7 @@ Quiet outlined controls; the primary is inverted ink.
 - **Topbar:** fox mark (34px) + mono wordmark, then a muted separator and the project crumb.
 - **Rail:** 40px items, `muted` text; hover and active fill `surface-raised`, active is 600 weight. Account and version sit at the bottom above a 1px rule.
 - **Status tabs:** 44px tall, `muted`, active is ink at 600 with a 2px ink underline overlapping the 1px tab rule.
-- **Persuade header:** fox mark (36px) + wordmark, muted text links, one primary "Try the demo" button.
+- **Persuade header:** fox mark (36px) + wordmark, muted text links, one primary "Try the demo" button. Until the public demo exists it is a placeholder: "Demo coming soon" with a dashed `rule` border and `muted` text, inert (no link, not focusable), the same dashed language as the "Sample data" tag.
 
 ### Track Rows (signature)
 The list unit for issues and projects. A grid row with a 1px bottom `border`, 64px minimum height, hover to `surface` with the title underlined in blue. The title link's `::after` covers the row so the whole row is the target; focus draws a 2px blue inset outline on the row. Title at 16px 600, culprit beneath in 13px mono `muted`. Selected rows (checkbox) fill `surface-raised`.

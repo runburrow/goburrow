@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/social/banner-dark.png">
+  <img alt="Burrow: your errors, your server. Self-hosted error tracking in one ~14 MB binary and a SQLite file." src="brand/social/banner-light.png">
+</picture>
+
 # 🦊 Burrow
 
 **Lightweight, self-hosted, open-source error tracking that works with the Sentry SDKs you already use.**

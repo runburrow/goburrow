@@ -6,15 +6,21 @@ setting, like the app.
 
 ## Before launch
 
-- **Demo URL. Don't publish until the demo is live.** The main action, "Try the demo", links to
-  `https://demo.goburrow.xyz`, which doesn't serve anything yet. Once the public demo runs,
-  point all three links at it in one go:
+- **Demo buttons are placeholders.** The three demo buttons say "Demo coming soon" and do
+  nothing (dashed, muted, not focusable). Once the public demo runs, turn them into links in
+  one go:
 
   ```sh
-  sed -i 's#https://demo.goburrow.xyz#https://YOUR-DEMO-URL#g' site/index.html
+  sed -i 's#<span class="button soon" aria-disabled="true" data-demo>Demo coming soon</span>#<a class="button primary" href="https://YOUR-DEMO-URL">Try the demo</a>#g' site/index.html
   ```
-- **Domain.** The canonical and Open Graph URLs use `https://goburrow.xyz/` (3 places in the
-  `<head>` of `index.html`). Update them if the domain changes.
+  Then put "Open the demo, triage the sample projects, and resolve something." back as the
+  closing section's lead.
+- **Domain.** The canonical, Open Graph, Twitter and JSON-LD URLs use `https://goburrow.xyz/`
+  (all in the `<head>` of `index.html`). Change them together if the domain changes:
+  `sed -i 's#https://goburrow.xyz#https://NEW-DOMAIN#g' site/index.html`.
+- **Social previews.** `og.png` (1200×630) is the card for links to the site. Check it with
+  any link-preview debugger once the site is live. The GitHub repository's preview is
+  `brand/social/github-social.png`; upload it under the repo's Settings → Social preview.
 - **Hosting.** Any static host works. For GitHub Pages, publish this `site/` folder and add a
   `CNAME` file containing the domain.
 

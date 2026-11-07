@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="52" height="52" role="img" aria-label="Burrow fox mark">
+<title>Burrow fox mark</title>
+<defs><mask id="eyes" maskUnits="userSpaceOnUse" x="0" y="0" width="52.0" height="52.0"><rect width="52.0" height="52.0" fill="#fff"/><circle cx="18.5" cy="31.8" r="3" fill="#000"/><circle cx="33.5" cy="31.8" r="3" fill="#000"/></mask></defs>
+<g mask="url(#eyes)">
+<g><g><path stroke="#b4531f" fill="none" stroke-width="1.2" stroke-linecap="round" d="M7.6 17.9V22.4M9.9 10.8V21.7M12.2 4.2V21M14.5 7.5V20.2M16.8 10.8V19.5M19.1 14.1V18.8"/></g><g><path stroke="#b4531f" fill="none" stroke-width="1.2" stroke-linecap="round" d="M32.9 14.1V18.8M35.2 10.8V19.5M37.5 7.5V20.2M39.8 4.2V21M42.1 10.8V21.7M44.4 17.9V22.4"/></g></g>
+  <g><path stroke="#b4531f" fill="none" stroke-width="1.2" stroke-linecap="round" d="M7.6 23.5V35.9M9.9 22.7V37.3M12.2 22V38.6M16.8 20.5V41.3M19.1 19.8V42.6M21.4 19.1V44.1M26 19.1V46.9M28.3 19.1V45.5M30.6 19.1V44.1M35.2 20.5V41.3M37.5 21.3V39.9M39.8 22V38.6M44.4 23.5V35.9M46.7 24.2V34.6"/><path stroke="#b4531f" fill="none" stroke-width="1.2" stroke-linecap="round" d="M5.3 24.2V34.6M14.5 21.3V39.9M23.7 19.1V45.5M32.9 19.8V42.6M42.1 22.7V37.3"/></g>
+  <path stroke="#1a1916" fill="none" stroke-width="1.2" stroke-linecap="round" d="M7.6 17.9V19.3M9.9 10.8V14.3M12.2 4.2V9.6M14.5 7.5V11.6M16.8 10.8V13.6M19.1 14.1V15.6M32.9 14.1V15.6M35.2 10.8V13.6M37.5 7.5V11.6M39.8 4.2V9.6M42.1 10.8V14.3M44.4 17.9V19.3"/><path stroke="#1a1916" fill="none" stroke-width="1.2" stroke-linecap="round" d="M3 27V35M1 29V34M49 27V35M51 29V34"/><ellipse fill="#1a1916" cx="26" cy="44" rx="2.4" ry="1.9"/>
+  <g></g>
+</g>
+<g><circle fill="#1a1916" cx="18.5" cy="31.8" r="1.5"/><circle fill="#1a1916" cx="33.5" cy="31.8" r="1.5"/></g>
+
+</svg>

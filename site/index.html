@@ -6,14 +6,52 @@
 <meta name="color-scheme" content="dark light">
 <title>Burrow · Self-hosted error tracking</title>
 <meta name="description" content="Burrow is open-source error tracking you run yourself: one ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
+<meta name="author" content="mozthewah">
+<meta name="robots" content="index, follow">
 <link rel="canonical" href="https://goburrow.xyz/">
+
+<!-- Open Graph (Facebook, LinkedIn, Slack, Discord, iMessage…) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Burrow">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://goburrow.xyz/">
 <meta property="og:title" content="Burrow · Self-hosted error tracking">
 <meta property="og:description" content="One ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
-<meta property="og:url" content="https://goburrow.xyz/">
-<meta property="og:image" content="https://goburrow.xyz/assets/shots/issue-detail-dark.webp">
+<meta property="og:image" content="https://goburrow.xyz/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Burrow fox sitting by its burrow, next to the words: Your errors, your server. Self-hosted error tracking in one ~14 MB binary and a SQLite file.">
+
+<!-- X / Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Burrow · Self-hosted error tracking">
+<meta name="twitter:description" content="One ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
+<meta name="twitter:image" content="https://goburrow.xyz/og.png">
+<meta name="twitter:image:alt" content="The Burrow fox sitting by its burrow, next to the words: Your errors, your server. Self-hosted error tracking in one ~14 MB binary and a SQLite file.">
+
 <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f2f1ee" media="(prefers-color-scheme: light)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Burrow",
+  "description": "Burrow is open-source error tracking you run yourself: one ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.",
+  "url": "https://goburrow.xyz/",
+  "image": "https://goburrow.xyz/og.png",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "mozthewah" },
+  "sameAs": ["https://github.com/mozthewah/OpenSourcedSentryAlternative"]
+}
+</script>
 <link rel="stylesheet" href="styles.css">
 <script src="site.js" defer></script>
 </head>
@@ -31,7 +69,7 @@
     <a href="#how">How it works</a>
     <a href="#install">Install</a>
     <a href="https://github.com/mozthewah/OpenSourcedSentryAlternative">GitHub</a>
-    <a class="button primary" href="https://demo.goburrow.xyz">Try the demo</a>
+    <span class="button soon" aria-disabled="true" data-demo>Demo coming soon</span>
   </nav>
 </header>
 
@@ -41,7 +79,7 @@
     <h1 id="hero-title">Your errors, your server.</h1>
     <p class="hero-lead">Self-hosted error tracking in <strong>one ~14 MB binary and a SQLite file.</strong> No Redis, no Kafka, no ClickHouse.</p>
     <div class="hero-actions">
-      <a class="button primary" href="https://demo.goburrow.xyz">Try the demo</a>
+      <span class="button soon" aria-disabled="true" data-demo>Demo coming soon</span>
       <a class="button" href="https://github.com/mozthewah/OpenSourcedSentryAlternative">View on GitHub</a>
     </div>
     <div class="command" aria-label="Install command">
@@ -252,9 +290,9 @@ docker compose up -d</pre>
   <g class="dirt-particles"><circle cx="30" cy="63" r="1.3"/><circle cx="38" cy="57" r="1"/><circle cx="46" cy="65" r="1.2"/><circle cx="114" cy="65" r="1.2"/><circle cx="123" cy="57" r="1"/><circle cx="131" cy="63" r="1.3"/><circle class="near" cx="66" cy="66" r="1.4"/><circle class="near" cx="80" cy="61" r="1.1"/><circle class="near" cx="94" cy="66" r="1.4"/><circle class="near" cx="72" cy="57" r="1"/><circle class="near" cx="88" cy="57" r="1"/></g>
 </svg></span>
     <h2 id="close-title">See it with real errors before you install it.</h2>
-    <p class="section-lead">Open the demo, triage the sample projects, and resolve something.</p>
+    <p class="section-lead">A public demo with sample projects to triage is on its way. Until then, install it and press Send test event: you'll have a real issue on screen in a minute.</p>
     <div class="hero-actions">
-      <a class="button primary" href="https://demo.goburrow.xyz">Try the demo</a>
+      <span class="button soon" aria-disabled="true" data-demo>Demo coming soon</span>
       <a class="button" href="https://github.com/mozthewah/OpenSourcedSentryAlternative">View on GitHub</a>
     </div>
   </div>

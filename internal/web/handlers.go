@@ -939,8 +939,8 @@ func sampleEvent() *event.Event {
 		Platform:    "python",
 		Level:       "error",
 		Environment: "production",
-		Release:     "burrow-demo@1.0.0",
-		ServerName:  "demo-host-1",
+		Release:     "sample-app@1.0.0",
+		ServerName:  "sample-host-1",
 		Transaction: "POST /api/checkout",
 		Exceptions: []event.Exception{{
 			Type:      "ZeroDivisionError",

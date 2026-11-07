@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 86" width="160" height="86" role="img" aria-label="Burrow fox, peeking from its burrow">
+<title>Burrow fox, peeking from its burrow</title>
+<defs><mask id="eyes" maskUnits="userSpaceOnUse" x="0" y="0" width="160.0" height="86.0"><rect width="160.0" height="86.0" fill="#fff"/><circle cx="67" cy="56" r="4.6" fill="#000"/><circle cx="93" cy="56" r="4.6" fill="#000"/></mask><clipPath id="ground"><rect x="0" y="0" width="160.0" height="72"/></clipPath></defs>
+<g mask="url(#eyes)" clip-path="url(#ground)">
+<g>
+    <g>
+      <g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M46.2 38.4V40.5M48.8 30.3V39.6M51.4 22.3V38.8M54 14.2V38M56.6 8.9V37.1M59.2 12.6V36.3M61.8 16.3V35.5M64.4 20.1V34.6M67 23.8V33.8M69.6 27.6V33"/></g>
+      <g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M90.4 27.6V33M93 23.8V33.8M95.6 20.1V34.6M98.2 16.3V35.5M100.8 12.6V36.3M103.4 8.9V37.1M106 14.2V38M108.6 22.3V38.8M111.2 30.3V39.6M113.8 38.4V40.5"/></g>
+    </g>
+    <g><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M46.2 42.3V61.8M48.8 41.4V63.3M51.4 40.6V64.9M56.6 38.9V67.9M59.2 38.1V69.4M61.8 37.3V70.9M67 35.6V73.9M69.6 34.8V75.6M72.2 34V77.2M77.4 34V80.4M80 34V82M82.6 34V80.4M87.8 34V77.2M90.4 34.8V75.6M93 35.6V73.9M98.2 37.3V70.9M100.8 38.1V69.4M103.4 38.9V67.9M108.6 40.6V64.9M111.2 41.4V63.3M113.8 42.3V61.8"/><path stroke="#e07a43" fill="none" stroke-width="1.2" stroke-linecap="round" d="M43.6 43.1V60.3M54 39.8V66.4M64.4 36.4V72.4M74.8 34V78.8M85.2 34V78.8M95.6 36.4V72.4M106 39.8V66.4M116.4 43.1V60.3"/></g>
+    <path stroke="#f2efe6" fill="none" stroke-width="1.2" stroke-linecap="round" d="M46.2 38.4V39.1M48.8 30.3V33.3M51.4 22.3V27.6M54 14.2V21.8M56.6 8.9V17.9M59.2 12.6V20.2M61.8 16.3V22.4M64.4 20.1V24.7M67 23.8V27.0M69.6 27.6V29.3M90.4 27.6V29.3M93 23.8V27.0M95.6 20.1V24.7M98.2 16.3V22.4M100.8 12.6V20.2M103.4 8.9V17.9M106 14.2V21.8M108.6 22.3V27.6M111.2 30.3V33.3M113.8 38.4V39.1"/>
+    <path stroke="#f2efe6" fill="none" stroke-width="1.2" stroke-linecap="round" d="M41 50V66M38.4 54V65M35.8 58V64M119 50V66M121.6 54V65M124.2 58V64"/>
+    <ellipse fill="#f2efe6" cx="80" cy="67" rx="4.2" ry="3.2"/>
+    <g></g>
+  </g>
+</g>
+<g><circle fill="#f2efe6" cx="67" cy="56" r="2.4"/><circle fill="#f2efe6" cx="93" cy="56" r="2.4"/></g>
+<ellipse fill="none" stroke="#a9a79e" stroke-width="1.3" stroke-dasharray="3 3" cx="80" cy="72" rx="56" ry="7.5"/>
+  <path stroke="#a9a79e" fill="none" stroke-width="1.2" stroke-linecap="round" d="M27 80q6-8 12 0M121 80q6-8 12 0M46 82h7M108 82h9"/>
+  <path stroke="#a9a79e" fill="none" stroke-width="1.2" stroke-linecap="round" d="M14 71l-3-9M20 72l-1-11M26 71l2-7M134 71l-2-7M140 72l1-11M146 71l3-9"/>
+</svg>
