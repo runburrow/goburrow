@@ -47,6 +47,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	for _, suffix := range []string{"", "/"} {
 		mux.HandleFunc("/api/{project_id}/envelope"+suffix, h.cors(h.envelope))
 		mux.HandleFunc("/api/{project_id}/store"+suffix, h.cors(h.store))
+		mux.HandleFunc("/api/{project_id}/report"+suffix, h.cors(h.report))
 	}
 }
 
@@ -63,7 +64,7 @@ func (h *Handler) cors(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Sentry-Auth, Authorization, Content-Encoding, sentry-trace, baggage")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Sentry-Auth, X-Burrow-Key, Authorization, Content-Encoding, sentry-trace, baggage")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Sentry-Error, X-Sentry-Rate-Limits, Retry-After")
 		w.Header().Set("Access-Control-Max-Age", "3600")
 		if r.Method == http.MethodOptions {
@@ -164,12 +165,13 @@ func (h *Handler) ingestEvent(ctx context.Context, project *store.Project, paylo
 }
 
 var (
-	errNoKey      = errors.New("missing sentry_key")
-	errBadProject = errors.New("invalid project or key")
+	errNoKey       = errors.New("missing sentry_key")
+	errNoReportKey = errors.New("missing project key: send it in the X-Burrow-Key header")
+	errBadProject  = errors.New("invalid project or key")
 )
 
 func (h *Handler) authError(w http.ResponseWriter, err error) {
-	if errors.Is(err, errNoKey) || errors.Is(err, errBadProject) {
+	if errors.Is(err, errNoKey) || errors.Is(err, errNoReportKey) || errors.Is(err, errBadProject) {
 		apiError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
@@ -200,6 +202,11 @@ func (h *Handler) authenticate(r *http.Request, envelopeDSN string) (*store.Proj
 	if key == "" {
 		return nil, errNoKey
 	}
+	return h.projectWithKey(r, pid, key)
+}
+
+// projectWithKey loads project pid and checks key against its public key.
+func (h *Handler) projectWithKey(r *http.Request, pid int64, key string) (*store.Project, error) {
 	p, err := h.Store.ProjectByID(r.Context(), pid)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errBadProject

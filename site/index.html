@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<title>Burrow · Self-hosted error tracking for Sentry SDKs</title>
-<meta name="description" content="Burrow is open-source error tracking you run yourself: one ~14 MB binary and a SQLite file, compatible with the Sentry SDKs you already use.">
+<title>Burrow · Self-hosted error tracking</title>
+<meta name="description" content="Burrow is open-source error tracking you run yourself: one ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
 <link rel="canonical" href="https://goburrow.xyz/">
 <meta property="og:title" content="Burrow · Self-hosted error tracking">
-<meta property="og:description" content="One ~14 MB binary and a SQLite file. Works with the Sentry SDKs you already use.">
+<meta property="og:description" content="One ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
 <meta property="og:url" content="https://goburrow.xyz/">
 <meta property="og:image" content="https://goburrow.xyz/assets/shots/issue-detail-dark.webp">
 <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
@@ -38,7 +38,7 @@
 <main id="main">
 <section class="hero wrap" id="top" aria-labelledby="hero-title">
   <div class="hero-copy">
-    <h1 id="hero-title">Your Sentry SDK, your server.</h1>
+    <h1 id="hero-title">Your errors, your server.</h1>
     <p class="hero-lead">Self-hosted error tracking in <strong>one ~14 MB binary and a SQLite file.</strong> No Redis, no Kafka, no ClickHouse.</p>
     <div class="hero-actions">
       <a class="button primary" href="https://demo.goburrow.xyz">Try the demo</a>
@@ -101,11 +101,12 @@
   <div class="wrap split">
     <div>
       <h2 id="how-title">Keep your SDK. Change one line.</h2>
-      <p class="section-lead">Burrow speaks the public Sentry ingestion protocol, so the official SDKs send to it unchanged. Create a project, copy its DSN, and point your app at it.</p>
+      <p class="section-lead">Burrow works with the Sentry SDKs: it speaks their public ingestion protocol, so they send to it unchanged. Create a project, copy its DSN, and point your app at it.</p>
       <ul class="facts">
         <li><span><strong>Envelope and legacy store endpoints</strong>, gzip and deflate bodies, every SDK auth style, and CORS for browser SDKs.</span></li>
         <li><span><strong>Tested against</strong> the official Python <code>sentry-sdk</code> and <code>@sentry/node</code>.</span></li>
         <li><span><strong>SDK retries never double-count.</strong> Ingestion is idempotent.</span></li>
+        <li><span><strong>No SDK? Send JSON.</strong> The report API takes a plain POST, so Roblox game servers, shell scripts and cron jobs can report too.</span></li>
       </ul>
     </div>
     <div>
@@ -113,6 +114,7 @@
         <button class="sdk-tab" role="tab" aria-selected="true" aria-controls="sdk-python" id="tab-python" type="button">Python</button>
         <button class="sdk-tab" role="tab" aria-selected="false" aria-controls="sdk-node" id="tab-node" type="button" tabindex="-1">Node.js</button>
         <button class="sdk-tab" role="tab" aria-selected="false" aria-controls="sdk-go" id="tab-go" type="button" tabindex="-1">Go</button>
+        <button class="sdk-tab" role="tab" aria-selected="false" aria-controls="sdk-roblox" id="tab-roblox" type="button" tabindex="-1">Roblox</button>
       </div>
       <pre class="code" id="sdk-python" role="tabpanel" aria-labelledby="tab-python"><span class="c"># pip install sentry-sdk</span>
 import sentry_sdk
@@ -133,6 +135,18 @@ err := sentry.Init(sentry.ClientOptions{
 	<span class="dsn">Dsn: "https://&lt;key&gt;@burrow.lan/1",</span>
 })
 defer sentry.Flush(2 * time.Second)</pre>
+      <pre class="code" id="sdk-roblox" role="tabpanel" aria-labelledby="tab-roblox" hidden><span class="c">-- Script in ServerScriptService. The version in project
+-- settings also batches and relays errors from players.</span>
+local HttpService = game:GetService("HttpService")
+
+game:GetService("ScriptContext").Error:Connect(function(message, stack)
+  HttpService:RequestAsync({
+    <span class="dsn">Url = "https://burrow.example.com/api/1/report",</span>
+    Method = "POST",
+    Headers = { ["X-Burrow-Key"] = "&lt;key&gt;", ["Content-Type"] = "application/json" },
+    Body = HttpService:JSONEncode({ message = message, stack = stack }),
+  })
+end)</pre>
     </div>
   </div>
 </section>
@@ -162,12 +176,8 @@ defer sentry.Flush(2 * time.Second)</pre>
   <div class="wrap phone">
     <div>
       <h2 id="phone-title">From a chat alert to resolved, on your phone.</h2>
-      <p class="section-lead">Set one webhook URL and Burrow posts when an issue is new or regresses. It works with Slack, Discord, Mattermost, or any endpoint. The link opens the issue with its in-app frame expanded and Resolve within reach.</p>
+      <p class="section-lead">Add webhooks in each project's settings, choose new issues, regressions or both, and send a test before the first real alert. They work with Slack, Discord, Mattermost, or any endpoint. The link opens the issue with its in-app frame expanded and Resolve within reach.</p>
       <div class="alert-line"><span class="from">Sample webhook message</span><span class="mono">🦡 Regression in checkout-api: TypeError: Cannot read properties of undefined (reading 'total')<br>https://burrow.lan/issues/3</span></div>
-      <div class="command" aria-label="Webhook setting">
-        <code id="cmd-webhook">BURROW_WEBHOOK_URL=<wbr>https://hooks.slack.com/<wbr>services/…</code>
-        <button class="copy" type="button" data-copy="#cmd-webhook">Copy</button>
-      </div>
     </div>
     <figure class="shot">
       <picture>

@@ -82,7 +82,7 @@ code, pre, kbd { font-family: var(--mono); }
 .stream-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: .8125rem; color: var(--muted); }
 .stream-bar strong { color: var(--text); font-weight: 600; }
 .stream-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sample { padding: 1px 7px; border: 1px dashed var(--rule); border-radius: var(--radius); white-space: nowrap; }
+.sample { display: inline-flex; align-items: center; min-height: 30px; padding: 0 7px; border: 1px dashed var(--rule); border-radius: var(--radius); white-space: nowrap; }
 .incoming { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--code-bg); font: .8125rem/1.4 var(--mono); color: var(--muted); overflow: hidden; }
 .incoming-label { flex: 0 0 auto; color: var(--muted); font-family: var(--sans); }
 .incoming .event { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
@@ -94,7 +94,7 @@ code, pre, kbd { font-family: var(--mono); }
 .issue-culprit { display: block; margin-top: 2px; color: var(--muted); font: .8125rem/1.4 var(--mono); }
 .issue-count { text-align: right; font: 500 .9rem var(--mono); font-variant-numeric: tabular-nums; }
 .issue-side { display: flex; justify-content: flex-end; }
-.resolve { min-height: 30px; padding: 3px 9px; border: 1px solid var(--rule); border-radius: var(--radius); background: transparent; color: var(--text); font: 500 .8125rem/1 var(--sans); cursor: pointer; }
+.resolve { align-items: center; justify-content: center; min-height: 30px; padding: 3px 9px; border: 1px solid var(--rule); border-radius: var(--radius); background: transparent; color: var(--text); font: 500 .8125rem/1 var(--sans); cursor: pointer; }
 .resolve:hover { background: var(--surface-2); border-color: var(--text); }
 .pill { display: inline-flex; padding: 0 7px; border: 1px solid var(--rule); border-radius: var(--radius); color: var(--muted); font-size: .75rem; font-weight: 600; line-height: 1.6; vertical-align: 2px; margin-left: 6px; white-space: nowrap; }
 .pill.regression { color: var(--red-text); border-color: var(--red); }

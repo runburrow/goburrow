@@ -114,6 +114,17 @@ var migrations = []string{
 	// 3: remember that an issue came back after being resolved, until the
 	// user next sets its status.
 	`ALTER TABLE issues ADD COLUMN regressed INTEGER NOT NULL DEFAULT 0;`,
+
+	// 4: per-project alert webhooks, managed in project settings.
+	`CREATE TABLE webhooks (
+		id            INTEGER PRIMARY KEY,
+		project_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+		url           TEXT NOT NULL,
+		on_new        INTEGER NOT NULL DEFAULT 1,
+		on_regression INTEGER NOT NULL DEFAULT 1,
+		created_at    INTEGER NOT NULL
+	);
+	CREATE INDEX webhooks_by_project ON webhooks(project_id, id);`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {

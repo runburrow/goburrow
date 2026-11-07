@@ -3,7 +3,9 @@ package web
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	"github.com/mozthewah/opensourcedsentryalternative/internal/ingest"
+	"github.com/mozthewah/opensourcedsentryalternative/internal/notify"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
 )
 
@@ -32,12 +35,14 @@ const (
 type Server struct {
 	Store   *store.Store
 	Ingest  *ingest.Handler
+	Notify  *notify.Dispatcher // per-project webhooks; "Send test" uses it
 	Log     *slog.Logger
 	BaseURL *url.URL // public URL, used to build DSNs and secure cookies
 	Version string
 	Now     func() time.Time // optional clock override for tests
 
-	pages map[string]*template.Template
+	pages    map[string]*template.Template
+	assetTag string // hash of the static files, busts browser caches on every change
 }
 
 func (s *Server) now() time.Time {
@@ -52,6 +57,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
+	s.assetTag = hashStatic()
 	mux := http.NewServeMux()
 	s.Ingest.Register(mux)
 
@@ -73,6 +79,9 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /projects/{slug}/test-event", s.authed(s.projectTestEvent))
 	mux.HandleFunc("POST /projects/{slug}/rotate-key", s.authed(s.projectRotateKey))
 	mux.HandleFunc("POST /projects/{slug}/delete", s.authed(s.projectDelete))
+	mux.HandleFunc("POST /projects/{slug}/webhooks", s.authed(s.webhookCreate))
+	mux.HandleFunc("POST /projects/{slug}/webhooks/{id}/test", s.authed(s.webhookTest))
+	mux.HandleFunc("POST /projects/{slug}/webhooks/{id}/delete", s.authed(s.webhookDelete))
 	mux.HandleFunc("GET /issues/{id}", s.authed(s.issueDetail))
 	mux.HandleFunc("POST /issues/{id}/status", s.authed(s.issueSetStatus))
 	mux.HandleFunc("POST /issues/{id}/delete", s.authed(s.issueDelete))
@@ -113,6 +122,7 @@ type pageData struct {
 	Title   string
 	Session *store.Session
 	Version string
+	Asset   string
 	Flash   string
 	Nav     navigationData
 	Data    any
@@ -124,7 +134,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 		http.Error(w, "unknown page "+page, http.StatusInternalServerError)
 		return
 	}
-	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Data: data, Flash: r.URL.Query().Get("flash")}
+	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Asset: s.assetTag, Data: data, Flash: r.URL.Query().Get("flash")}
 	pd.Nav.Page = page
 	if m, ok := data.(map[string]any); ok {
 		pd.Nav.Project, _ = m["Project"].(*store.Project)
@@ -297,4 +307,27 @@ func (s *Server) DSN(p *store.Project) string {
 	u.User = url.User(p.PublicKey)
 	u.Path = strings.TrimRight(u.Path, "/") + fmt.Sprintf("/%d", p.ID)
 	return u.String()
+}
+
+// ReportURL is the report API endpoint for p.
+func (s *Server) ReportURL(p *store.Project) string {
+	u := *s.BaseURL
+	u.Path = strings.TrimRight(u.Path, "/") + fmt.Sprintf("/api/%d/report", p.ID)
+	return u.String()
+}
+
+// hashStatic fingerprints the embedded static files. Release builds change
+// Version anyway, but dev builds all say "dev", so the URL needs the content.
+func hashStatic() string {
+	h := sha256.New()
+	_ = fs.WalkDir(staticFS, "static", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := staticFS.ReadFile(p)
+		h.Write([]byte(p))
+		h.Write(b)
+		return err
+	})
+	return hex.EncodeToString(h.Sum(nil))[:12]
 }

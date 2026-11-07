@@ -25,8 +25,12 @@ traces, breadcrumbs, tags and user context.
   **reopens automatically** (regression).
 - **Event detail.** Chained exceptions, stack frames with source context and locals,
   breadcrumbs, request, user, tags, contexts, raw JSON, and a 14-day activity chart.
-- **Alerts.** An optional webhook fires on new and regressed issues. It works with Slack,
-  Discord, Mattermost, or any custom endpoint.
+- **Report API.** No SDK for your platform? POST plain JSON to `/api/<id>/report`. Stack
+  traces in Luau, Lua, Python or JavaScript text become frames, so Roblox game servers,
+  shell scripts and cron jobs can report too. See [Report API](#report-api).
+- **Alerts.** Each project has its own webhooks, set in its settings: new issues, regressions,
+  or both, with a **Send test** button. They work with Slack, Discord, Mattermost, or any
+  custom endpoint.
 - **Idempotent ingestion.** SDK retries never double-count.
 - **Retention.** Old events are pruned automatically (30 days by default).
 - **Secure defaults.** bcrypt passwords, CSRF tokens, a strict CSP, SameSite cookies, and a
@@ -58,6 +62,29 @@ sentry_sdk.init(dsn="http://<key>@localhost:8000/1")
 
 Not ready to wire up an SDK? Every project has a **Send test event** button.
 
+## Report API
+
+For runtimes without a Sentry SDK. Send one report, a JSON array of up to 100, or
+`{"reports": [...]}`. The key is the project's public key (the one in its DSN), sent as
+`X-Burrow-Key`, `Authorization: Bearer <key>`, or `?key=`.
+
+```sh
+curl https://errors.example.com/api/1/report \
+  -H "X-Burrow-Key: <key>" -H "Content-Type: application/json" \
+  -d '{"message": "Payment failed", "level": "error", "stack": "...",
+       "environment": "production", "tags": {"region": "eu"}}'
+```
+
+Fields: `message` (required), `type`, `stack`, `level`, `platform`, `environment`,
+`release`, `server_name`, `logger`, `transaction`, `tags`, `user`, `extra`, `fingerprint`,
+`event_id`, `timestamp`. The response is `{"ids": [...]}`.
+
+**Roblox.** Create a project with the *Roblox (Luau)* platform and its settings page gives
+you a ready-made ModuleScript, filled in with your URL and key. It catches every server
+error through `ScriptContext.Error`, relays client errors through a RemoteEvent, and
+batches reports to stay well inside Roblox's HTTP limits. Roblox servers only reach public
+HTTPS addresses, so Burrow has to be deployed with a public `BURROW_BASE_URL`.
+
 ## Configuration
 
 Every option can be set with a flag or an environment variable.
@@ -68,7 +95,7 @@ Every option can be set with a flag or an environment variable.
 | `BURROW_DB` | `-db` | `burrow.db` | SQLite database file |
 | `BURROW_BASE_URL` | `-base-url` | `http://localhost<addr>` | Public URL. It goes into DSNs and alert links, and `https://` enables secure cookies. **Set this in production.** |
 | `BURROW_RETENTION_DAYS` | `-retention-days` | `30` | Delete events older than this. `0` keeps them forever. |
-| `BURROW_WEBHOOK_URL` | `-webhook-url` | | POST new or regressed issues here |
+| `BURROW_WEBHOOK_URL` | `-webhook-url` | | Fallback webhook for projects that have none of their own in settings |
 
 ### Running in production
 

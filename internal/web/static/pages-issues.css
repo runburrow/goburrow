@@ -213,6 +213,9 @@ ol.context code { font: inherit; }
   .issue-side { padding: 24px 0 0; border-left: 0; border-top: 1px solid var(--border); }
 }
 @media (max-width: 700px) {
+  /* The prompt gets its own line so the action buttons stay together on the next. */
+  .bulk-bar { padding: 8px 10px; }
+  .bulk-count { flex: 1 0 100%; }
   .issue-list .tracklist-head { display: none; }
   .issue-row { grid-template-columns: 26px auto auto minmax(0, 1fr); grid-template-areas: "check main main main" ". level events seen"; gap: 6px 12px; padding: 12px 4px; }
   .issue-row .track-check { grid-area: check; }

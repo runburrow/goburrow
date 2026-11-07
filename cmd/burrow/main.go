@@ -38,7 +38,7 @@ func main() {
 		dbPath    = flag.String("db", env("BURROW_DB", "burrow.db"), "SQLite database path (BURROW_DB)")
 		baseURL   = flag.String("base-url", env("BURROW_BASE_URL", ""), "public URL, used in DSNs and links (BURROW_BASE_URL); defaults to http://localhost<addr>")
 		retention = flag.Int("retention-days", atoi(env("BURROW_RETENTION_DAYS", "30")), "delete events older than this many days, 0 = keep forever (BURROW_RETENTION_DAYS)")
-		webhook   = flag.String("webhook-url", env("BURROW_WEBHOOK_URL", ""), "POST new/regressed issues here: Slack, Discord or custom (BURROW_WEBHOOK_URL)")
+		webhook   = flag.String("webhook-url", env("BURROW_WEBHOOK_URL", ""), "fallback webhook for projects with none set in their settings: Slack, Discord or custom (BURROW_WEBHOOK_URL)")
 		showVer   = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
@@ -81,11 +81,11 @@ func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhook
 	}
 	defer st.Close()
 
-	ing := &ingest.Handler{Store: st, Log: log}
-	if webhookURL != "" {
-		ing.Notifier = notify.NewWebhook(webhookURL, bu.String(), log)
-	}
-	srv := &web.Server{Store: st, Ingest: ing, Log: log, BaseURL: bu, Version: version}
+	// Per-project webhooks live in the database; webhookURL is the fallback
+	// for projects that have none.
+	alerts := notify.NewDispatcher(st, webhookURL, bu.String(), log)
+	ing := &ingest.Handler{Store: st, Log: log, Notifier: alerts}
+	srv := &web.Server{Store: st, Ingest: ing, Notify: alerts, Log: log, BaseURL: bu, Version: version}
 	h, err := srv.Handler()
 	if err != nil {
 		return err

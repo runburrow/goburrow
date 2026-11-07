@@ -1,7 +1,9 @@
 package web
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
+	"github.com/mozthewah/opensourcedsentryalternative/internal/notify"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
 )
 
@@ -203,6 +206,7 @@ var platforms = []struct{ ID, Name string }{
 	{"java", "Java / Kotlin"},
 	{"dotnet", ".NET"},
 	{"rust", "Rust"},
+	{"roblox", "Roblox (Luau)"},
 	{"other", "Other"},
 }
 
@@ -244,10 +248,122 @@ func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	hooks, err := s.Store.ListWebhooks(r.Context(), p.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.render(w, r, http.StatusOK, "project_settings", p.Name+" · Settings", map[string]any{
-		"Project": p,
-		"DSN":     s.DSN(p),
+		"Project":     p,
+		"DSN":         s.DSN(p),
+		"ReportURL":   s.ReportURL(p),
+		"Webhooks":    hooks,
+		"MaxWebhooks": store.MaxWebhooksPerProject,
+		"Fallback":    s.Notify != nil && s.Notify.FallbackURL != "",
+		"TestResult":  testResultMessage(r.URL.Query().Get("result")),
 	})
+}
+
+// --------------------------------------------------------------- webhooks
+
+func (s *Server) webhookCreate(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.loadProject(w, r)
+	if !ok {
+		return
+	}
+	back := "/projects/" + p.Slug + "/settings"
+	u := strings.TrimSpace(r.PostFormValue("url"))
+	onNew, onRegression := r.PostFormValue("on_new") == "1", r.PostFormValue("on_regression") == "1"
+	switch {
+	case !notify.ValidURL(u):
+		http.Redirect(w, r, back+"?flash=webhook-invalid#webhooks", http.StatusSeeOther)
+		return
+	case !onNew && !onRegression:
+		http.Redirect(w, r, back+"?flash=webhook-no-trigger#webhooks", http.StatusSeeOther)
+		return
+	}
+	if _, err := s.Store.CreateWebhook(r.Context(), p.ID, u, onNew, onRegression); errors.Is(err, store.ErrTooManyWebhooks) {
+		http.Redirect(w, r, back+"?flash=webhook-limit#webhooks", http.StatusSeeOther)
+		return
+	} else if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, back+"?flash=webhook-added#webhooks", http.StatusSeeOther)
+}
+
+func (s *Server) loadWebhook(w http.ResponseWriter, r *http.Request) (*store.Project, *store.Webhook, bool) {
+	p, ok := s.loadProject(w, r)
+	if !ok {
+		return nil, nil, false
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		s.notFound(w, r)
+		return nil, nil, false
+	}
+	wh, err := s.Store.WebhookByID(r.Context(), p.ID, id)
+	if errors.Is(err, store.ErrNotFound) {
+		s.notFound(w, r)
+		return nil, nil, false
+	} else if err != nil {
+		s.serverError(w, r, err)
+		return nil, nil, false
+	}
+	return p, wh, true
+}
+
+func (s *Server) webhookDelete(w http.ResponseWriter, r *http.Request) {
+	p, wh, ok := s.loadWebhook(w, r)
+	if !ok {
+		return
+	}
+	if err := s.Store.DeleteWebhook(r.Context(), p.ID, wh.ID); err != nil && !errors.Is(err, store.ErrNotFound) {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/projects/"+p.Slug+"/settings?flash=webhook-removed#webhooks", http.StatusSeeOther)
+}
+
+func (s *Server) webhookTest(w http.ResponseWriter, r *http.Request) {
+	p, wh, ok := s.loadWebhook(w, r)
+	if !ok {
+		return
+	}
+	result := "ok"
+	if err := s.Notify.Test(r.Context(), p, wh.URL); err != nil {
+		var status notify.ErrStatus
+		switch {
+		case errors.As(err, &status):
+			result = strconv.Itoa(status.Code)
+		case errors.Is(err, context.DeadlineExceeded):
+			result = "timeout"
+		default:
+			result = "unreachable"
+		}
+		s.Log.Info("webhook test failed", "project", p.Slug, "webhook", wh.ID, "err", err)
+	}
+	http.Redirect(w, r, fmt.Sprintf("/projects/%s/settings?flash=webhook-tested&result=%s#webhook-%d", p.Slug, result, wh.ID), http.StatusSeeOther)
+}
+
+// testResultMessage turns a webhook test result code into the sentence the
+// settings page shows. Only known codes render, so the query string can't
+// put arbitrary text on the page.
+func testResultMessage(code string) map[string]any {
+	switch code {
+	case "":
+		return nil
+	case "ok":
+		return map[string]any{"OK": true, "Text": "Test alert delivered. Check the channel it posts to."}
+	case "timeout":
+		return map[string]any{"Text": "The webhook didn't answer within 10 seconds. Check the URL and that the receiving service is up."}
+	case "unreachable":
+		return map[string]any{"Text": "Couldn't reach the webhook. Check the URL, and that this server can reach that host."}
+	}
+	if n, err := strconv.Atoi(code); err == nil && n >= 100 && n <= 599 {
+		return map[string]any{"Text": fmt.Sprintf("The webhook answered HTTP %d, so the alert wasn't accepted. Check the URL is complete and still active.", n)}
+	}
+	return nil
 }
 
 func (s *Server) projectTestEvent(w http.ResponseWriter, r *http.Request) {

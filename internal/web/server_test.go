@@ -21,6 +21,7 @@ import (
 
 	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/ingest"
+	"github.com/mozthewah/opensourcedsentryalternative/internal/notify"
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
 )
 
@@ -44,10 +45,11 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Cleanup(func() { st.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv := &Server{Store: st, Ingest: &ingest.Handler{Store: st, Log: log}, Log: log, Version: "test", Now: func() time.Time { return testNow }}
 	ts := httptest.NewUnstartedServer(nil)
 	ts.Start()
 	t.Cleanup(ts.Close)
+	alerts := notify.NewDispatcher(st, "", ts.URL, log)
+	srv := &Server{Store: st, Ingest: &ingest.Handler{Store: st, Log: log, Notifier: alerts}, Notify: alerts, Log: log, Version: "test", Now: func() time.Time { return testNow }}
 	srv.BaseURL, _ = url.Parse(ts.URL)
 	h, err := srv.Handler()
 	if err != nil {

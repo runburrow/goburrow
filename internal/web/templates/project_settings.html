@@ -12,10 +12,16 @@
 {{if eq .Flash "rotated"}}<p class="alert ok" role="status">Key rotated. Update the DSN in your apps; the old one no longer works.</p>{{end}}
 {{if eq .Flash "rotate-confirm"}}<p class="alert error" role="alert">Tick the confirmation box to rotate the key.</p>{{end}}
 {{if eq .Flash "delete-confirm"}}<p class="alert error" role="alert">Type the project slug exactly to confirm deletion.</p>{{end}}
+{{if eq .Flash "webhook-added"}}<p class="alert ok" role="status">Webhook added. Send a test to check it posts where you expect.</p>{{end}}
+{{if eq .Flash "webhook-removed"}}<p class="alert ok" role="status">Webhook removed.</p>{{end}}
+{{if eq .Flash "webhook-invalid"}}<p class="alert error" role="alert">That webhook URL doesn't look right. Use the full address, starting with https://.</p>{{end}}
+{{if eq .Flash "webhook-no-trigger"}}<p class="alert error" role="alert">Pick at least one of new issues or regressions, or the webhook would never fire.</p>{{end}}
+{{if eq .Flash "webhook-limit"}}<p class="alert error" role="alert">A project can have up to {{.Data.MaxWebhooks}} webhooks. Remove one to add another.</p>{{end}}
+{{if eq .Flash "webhook-tested"}}{{with .Data.TestResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}{{end}}
 
 <section class="panel" aria-labelledby="dsn-heading">
   <h2 id="dsn-heading">DSN</h2>
-  <p class="muted">Pass this to <code>Sentry.init</code> in any official Sentry SDK.</p>
+  <p class="muted">Pass this to <code>Sentry.init</code> in any official Sentry SDK. No SDK for your platform? Use the <a href="#report-heading">report API</a> below.</p>
   <div class="copybox">
     <code id="dsn">{{.Data.DSN}}</code>
     <button type="button" class="small js-only" data-copy="#dsn">Copy</button>
@@ -27,7 +33,6 @@
         <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M17.5 2.5 9 11M17.5 2.5l-5.5 15-3-6.5-6.5-3 15-5.5Z"/></svg>
         <span>Send test event</span>
       </button>
-      <span class="help">Creates a sample issue so you can check the setup.</span>
     </form>
     <details class="rotate-details">
       <summary class="button">
@@ -36,17 +41,21 @@
       </summary>
       <form method="post" action="/projects/{{$p.Slug}}/rotate-key" class="stack">
         <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
-        <p class="muted">Apps using the current DSN stop reporting until you deploy the new one.</p>
+        <p class="muted">Apps using the current DSN or report key stop reporting until you deploy the new one.</p>
         <label class="check"><input type="checkbox" name="confirm" value="rotate" required> Yes, invalidate the current DSN</label>
         <button type="submit" class="destructive">Rotate key</button>
       </form>
     </details>
   </div>
+  <p class="help settings-help">Send test event creates a sample issue so you can check the setup.</p>
 </section>
 
 <section class="panel" aria-labelledby="setup-heading">
-  <h2 id="setup-heading">SDK setup</h2>
+  <h2 id="setup-heading">{{if eq $p.Platform "roblox"}}Roblox setup{{else}}SDK setup{{end}}</h2>
   {{$dsn := .Data.DSN}}
+  {{if eq $p.Platform "roblox"}}
+  {{template "roblox-setup" .Data}}
+  {{else}}
   <div class="code-scroll">
   {{if eq $p.Platform "python"}}
   <pre class="code">pip install sentry-sdk
@@ -92,6 +101,76 @@ SentrySdk.Init(o => o.Dsn = "{{$dsn}}");</pre>
   {{end}}
   </div>
   <p class="muted small">Tip: set <code>traces_sample_rate</code> to 0. Burrow accepts performance data and discards it.</p>
+  {{end}}
+</section>
+
+<section class="panel" aria-labelledby="report-heading">
+  <h2 id="report-heading">Report API</h2>
+  <p class="muted">For anything without a Sentry SDK: game servers, shell scripts, cron jobs. POST JSON with the project key in the <code>X-Burrow-Key</code> header.</p>
+  <div class="copybox">
+    <code id="report-url">{{.Data.ReportURL}}</code>
+    <button type="button" class="small js-only" data-copy="#report-url">Copy</button>
+  </div>
+  <div class="copybox">
+    <code id="report-key">{{$p.PublicKey}}</code>
+    <button type="button" class="small js-only" data-copy="#report-key">Copy key</button>
+  </div>
+  <div class="code-scroll">
+  <pre class="code" id="report-curl">curl {{.Data.ReportURL}} \
+  -H "X-Burrow-Key: {{$p.PublicKey}}" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Payment failed for order 1182", "level": "error",
+       "stack": "...", "environment": "production", "tags": {"region": "eu"}}'</pre>
+  </div>
+  <p class="muted small">Only <code>message</code> is required. A <code>stack</code> in Luau, Lua, Python or JavaScript form becomes frames. Send up to 100 reports at once as a JSON array. The key is the same one in the DSN, so rotating it changes both.</p>
+</section>
+
+<section class="panel" id="webhooks" aria-labelledby="webhooks-heading">
+  <div class="panel-head">
+    <h2 id="webhooks-heading">Webhooks</h2>
+    <span class="panel-meta">{{len .Data.Webhooks}} of {{.Data.MaxWebhooks}}</span>
+  </div>
+  <p class="muted">Burrow posts here when an issue is new or comes back after being resolved. Slack, Discord and Mattermost webhook URLs work as they are.</p>
+  {{if .Data.Webhooks}}
+  <ul class="webhook-list">
+    {{range .Data.Webhooks}}
+    <li class="webhook" id="webhook-{{.ID}}">
+      <span class="webhook-main">
+        <code class="webhook-url">{{.URL}}</code>
+        <span class="help">{{if and .OnNew .OnRegression}}New issues and regressions{{else if .OnNew}}New issues only{{else}}Regressions only{{end}}</span>
+      </span>
+      <span class="webhook-actions">
+        <form method="post" action="/projects/{{$p.Slug}}/webhooks/{{.ID}}/test">
+          <input type="hidden" name="csrf" value="{{$.Session.CSRF}}">
+          <button type="submit" class="small">Send test</button>
+        </form>
+        <form method="post" action="/projects/{{$p.Slug}}/webhooks/{{.ID}}/delete">
+          <input type="hidden" name="csrf" value="{{$.Session.CSRF}}">
+          <button type="submit" class="small destructive" aria-label="Remove webhook {{.URL}}">Remove</button>
+        </form>
+      </span>
+    </li>
+    {{end}}
+  </ul>
+  {{else if .Data.Fallback}}
+  <p class="webhook-empty">No webhooks for this project yet, so alerts go to the server-wide webhook (<code>BURROW_WEBHOOK_URL</code>). Adding one here replaces it for this project.</p>
+  {{else}}
+  <p class="webhook-empty">No webhooks yet. Without one, new issues only show up here in the dashboard.</p>
+  {{end}}
+  {{if lt (len .Data.Webhooks) .Data.MaxWebhooks}}
+  <form method="post" action="/projects/{{$p.Slug}}/webhooks" class="webhook-form">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <label for="webhook-url"><span>Webhook URL</span>
+      <input id="webhook-url" name="url" type="url" required maxlength="2000" placeholder="https://hooks.slack.com/services/…" autocomplete="off" spellcheck="false">
+    </label>
+    <fieldset class="webhook-triggers">
+      <legend>Post when</legend>
+      <label class="check"><input type="checkbox" name="on_new" value="1" checked> A new issue appears</label>
+      <label class="check"><input type="checkbox" name="on_regression" value="1" checked> A resolved issue happens again</label>
+    </fieldset>
+    <button type="submit">Add webhook</button>
+  </form>
+  {{end}}
 </section>
 
 <section class="panel danger-zone" aria-labelledby="danger-heading">
@@ -105,4 +184,135 @@ SentrySdk.Init(o => o.Dsn = "{{$dsn}}");</pre>
     <button class="destructive" type="submit">Delete project</button>
   </form>
 </section>
+{{end}}
+
+{{define "roblox-setup"}}
+<p>Roblox has no Sentry SDK, so this uses the <a href="#report-heading">report API</a>. It catches every script error on the server and relays errors from players' devices. Turn on <strong>Game Settings → Security → Allow HTTP Requests</strong>, and run Burrow at a public HTTPS address: Roblox servers can't reach a private network.</p>
+<h3 class="snippet-title">1. ModuleScript <code>Burrow</code> in ServerScriptService</h3>
+<div class="code-scroll"><pre class="code" id="roblox-module">-- Sends every server error, plus errors relayed from clients, to Burrow.
+-- Lives in ServerScriptService, which clients never receive, so the key stays private.
+local HttpService = game:GetService("HttpService")
+local ScriptContext = game:GetService("ScriptContext")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local URL = "{{.ReportURL}}"
+local KEY = "{{.Project.PublicKey}}"
+
+local MAX_BATCH = 100   -- the most one request may carry; extra errors wait for the next flush
+local FLUSH_EVERY = 5   -- seconds; keeps well under Roblox's 500 HTTP requests per minute
+local CLIENT_LIMIT = 10 -- errors per player per minute, so one client can't flood you
+
+local Burrow = {}
+local queue, pending = {}, {}
+
+-- Queue one report. Repeats of the same error before the next flush are
+-- counted instead of sent again.
+function Burrow.capture(message, stack, level, tags)
+	message = string.sub(tostring(message), 1, 2000)
+	stack = stack and string.sub(tostring(stack), 1, 8000) or ""
+	local id = message .. "\n" .. stack
+	if pending[id] then
+		pending[id].extra.repeats += 1
+		return
+	end
+	if #queue >= MAX_BATCH * 2 then
+		return
+	end
+	local report = {
+		message = message,
+		stack = stack,
+		level = level or "error",
+		platform = "roblox",
+		environment = if RunService:IsStudio() then "studio" else "production",
+		release = tostring(game.PlaceVersion),
+		server_name = game.JobId,
+		tags = { place_id = tostring(game.PlaceId), side = "server" },
+		extra = { repeats = 1 },
+	}
+	for k, v in tags or {} do
+		report.tags[k] = tostring(v)
+	end
+	pending[id] = report
+	table.insert(queue, report)
+end
+
+local function flush()
+	if #queue == 0 then
+		return
+	end
+	local batch = {}
+	for i = 1, math.min(#queue, MAX_BATCH) do
+		table.insert(batch, table.remove(queue, 1))
+	end
+	pending = {}
+	for _, report in queue do
+		pending[report.message .. "\n" .. report.stack] = report
+	end
+	local ok, res = pcall(HttpService.RequestAsync, HttpService, {
+		Url = URL,
+		Method = "POST",
+		Headers = { ["Content-Type"] = "application/json", ["X-Burrow-Key"] = KEY },
+		Body = HttpService:JSONEncode(batch),
+	})
+	if not ok or not res.Success then
+		-- warn() goes to the output log, not ScriptContext.Error, so this can't loop.
+		warn("Burrow: couldn't send errors:", if ok then res.StatusCode else res)
+	end
+end
+
+function Burrow.start()
+	ScriptContext.Error:Connect(function(message, stack, origin)
+		Burrow.capture(message, stack, "error", { script = origin and origin:GetFullName() or "unknown" })
+	end)
+
+	-- Clients can't make HTTP requests, so they send their errors here.
+	local relay = Instance.new("RemoteEvent")
+	relay.Name = "BurrowClientError"
+	relay.Parent = ReplicatedStorage
+	local budget = {}
+	relay.OnServerEvent:Connect(function(player, message, stack)
+		if typeof(message) ~= "string" or typeof(stack) ~= "string" then
+			return
+		end
+		local now = os.clock()
+		local b = budget[player]
+		if not b or now - b.since > 60 then
+			b = { since = now, count = 0 }
+			budget[player] = b
+		end
+		b.count += 1
+		if b.count > CLIENT_LIMIT then
+			return
+		end
+		Burrow.capture(message, stack, "error", { side = "client", user_id = player.UserId })
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		budget[player] = nil
+	end)
+
+	task.spawn(function()
+		while true do
+			task.wait(FLUSH_EVERY)
+			flush()
+		end
+	end)
+	game:BindToClose(flush)
+end
+
+return Burrow</pre></div>
+<button type="button" class="small js-only snippet-copy" data-copy="#roblox-module">Copy module</button>
+
+<h3 class="snippet-title">2. Script in ServerScriptService</h3>
+<div class="code-scroll"><pre class="code" id="roblox-start">require(script.Parent.Burrow).start()</pre></div>
+
+<h3 class="snippet-title">3. LocalScript in StarterPlayer → StarterPlayerScripts</h3>
+<div class="code-scroll"><pre class="code" id="roblox-client">local ScriptContext = game:GetService("ScriptContext")
+local relay = game:GetService("ReplicatedStorage"):WaitForChild("BurrowClientError")
+
+ScriptContext.Error:Connect(function(message, stack)
+	relay:FireServer(message, stack)
+end)</pre></div>
+<p class="muted small">Errors caught with <code>pcall</code> never reach <code>ScriptContext.Error</code>. To report one anyway, call <code>Burrow.capture(err, debug.traceback())</code> from a server script.</p>
 {{end}}
