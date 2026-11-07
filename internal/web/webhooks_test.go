@@ -138,7 +138,7 @@ func TestWebhookSettingsFlow(t *testing.T) {
 		t.Error("webhook with no trigger accepted")
 	}
 	// Regressions only.
-	if _, body := h.post("/projects/obby/webhooks", url.Values{"url": {hook.URL}, "on_regression": {"1"}}); !strings.Contains(body, "Webhook added") || !strings.Contains(body, "Regressions only") {
+	if _, body := h.post("/projects/obby/webhooks", url.Values{"url": {hook.URL}, "on_regression": {"1"}}); !strings.Contains(body, "Webhook added") || !strings.Contains(body, "JSON · regressions only") {
 		t.Fatal("webhook not added")
 	}
 	hooks, _ := h.st.ListWebhooks(t.Context(), id)

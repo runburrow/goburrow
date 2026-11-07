@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/runburrow/goburrow/internal/notify"
 	"html/template"
 	"path"
 	"sort"
@@ -38,6 +39,7 @@ var funcs = template.FuncMap{
 	"comma":           comma,
 	"platformName":    platformName,
 	"until":           until,
+	"webhookFormat":   notify.WebhookFormatLabel,
 	"activitySummary": activitySummary,
 	"seq": func(n int) []int {
 		s := make([]int, n)

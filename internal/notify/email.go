@@ -16,13 +16,8 @@ import (
 // issues shouldn't bury an inbox, and the dashboard has the full picture.
 const emailsPerHour = 20
 
-func (d *Dispatcher) emailAlert(ctx context.Context, p *store.Project, issueID int64, ev *event.Event, res *store.IngestResult, to []string) {
+func (d *Dispatcher) emailAlert(issueID int64, a mail.Alert, to []string) {
 	if len(to) == 0 || d.Mail == nil {
-		return
-	}
-	a, err := d.alertFor(ctx, p, issueID, ev, res.Regressed)
-	if err != nil {
-		d.Log.Error("email alert", "issue", issueID, "err", err)
 		return
 	}
 	for _, addr := range to {
@@ -76,16 +71,22 @@ func (d *Dispatcher) TestEmail(ctx context.Context, p *store.Project, addr strin
 	if d.Mail == nil {
 		return fmt.Errorf("email isn't set up on this server")
 	}
-	a := mail.Alert{
-		Project: p.Name, Title: "Error: this is what an alert looks like", Culprit: "sample/alert.go in example",
-		Level: "error", Environment: "production", TimesSeen: 3, Activity: []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2},
-		IssueURL:    fmt.Sprintf("%s/projects/%s", d.BaseURL, p.Slug),
-		SettingsURL: fmt.Sprintf("%s/projects/%s/settings#email-alerts", d.BaseURL, p.Slug),
-		To:          addr, Test: true,
-	}
+	a := sampleAlert(d.BaseURL, p)
+	a.To = addr
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	return d.Mail.Send(ctx, mail.AlertMessage(a))
+}
+
+// sampleAlert is what "Send test" shows: an obviously sample issue in p.
+func sampleAlert(baseURL string, p *store.Project) mail.Alert {
+	return mail.Alert{
+		Project: p.Name, Title: "Error: this is what an alert looks like", Culprit: "sample/alert.go in example",
+		Level: "error", Environment: "production", TimesSeen: 3, Activity: []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2},
+		IssueURL:    fmt.Sprintf("%s/projects/%s", baseURL, p.Slug),
+		SettingsURL: fmt.Sprintf("%s/projects/%s/settings#email-alerts", baseURL, p.Slug),
+		Test:        true,
+	}
 }
 
 // emailLimit is a per-address sliding window.

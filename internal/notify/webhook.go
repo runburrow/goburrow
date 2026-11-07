@@ -105,7 +105,15 @@ func (d *Dispatcher) targets(ctx context.Context, p *store.Project, regressed bo
 
 func (d *Dispatcher) IssueEvent(ctx context.Context, p *store.Project, issueID int64, ev *event.Event, res *store.IngestResult) {
 	urls, emails := d.targets(ctx, p, res.Regressed)
-	d.emailAlert(ctx, p, issueID, ev, res, emails)
+	if len(urls) == 0 && len(emails) == 0 {
+		return
+	}
+	// One look-up of the issue serves every destination.
+	alert, err := d.alertFor(ctx, p, issueID, ev, res.Regressed)
+	if err != nil {
+		d.Log.Error("alert details", "issue", issueID, "err", err)
+	}
+	d.emailAlert(issueID, alert, emails)
 	if len(urls) == 0 {
 		return
 	}
@@ -126,9 +134,13 @@ func (d *Dispatcher) IssueEvent(ctx context.Context, p *store.Project, issueID i
 	pl.Text = fmt.Sprintf("🦊 %s in %s: %s\n%s", verb, inert(p.Name), inert(pl.Burrow.Title), pl.Burrow.URL)
 	pl.Content = pl.Text
 	pl.AllowedMentions.Parse = []string{}
-	body, _ := json.Marshal(pl)
+	plain, _ := json.Marshal(pl)
 
 	for _, u := range urls {
+		body := plain
+		if f := WebhookFormat(u); f != FormatJSON {
+			body = d.richPayload(f, cardFor(alert, pl.Burrow.Kind))
+		}
 		select {
 		case d.sem <- struct{}{}:
 		default:
@@ -137,14 +149,14 @@ func (d *Dispatcher) IssueEvent(ctx context.Context, p *store.Project, issueID i
 		}
 		// Deliver in the background: ingestion latency must not depend on
 		// a third-party webhook being up.
-		go func(u string) {
+		go func(u string, body []byte) {
 			defer func() { <-d.sem }()
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			if err := d.post(ctx, u, body); err != nil {
 				d.Log.Warn("webhook delivery failed", "issue", issueID, "err", err)
 			}
-		}(u)
+		}(u, body)
 	}
 }
 
@@ -160,6 +172,9 @@ func (d *Dispatcher) Test(ctx context.Context, p *store.Project, u string) error
 	pl.Content = pl.Text
 	pl.AllowedMentions.Parse = []string{}
 	body, _ := json.Marshal(pl)
+	if f := WebhookFormat(u); f != FormatJSON {
+		body = d.richPayload(f, cardFor(sampleAlert(d.BaseURL, p), "test"))
+	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return d.post(ctx, u, body)

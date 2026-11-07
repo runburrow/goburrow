@@ -39,8 +39,10 @@ traces, breadcrumbs, tags and user context.
   traces in Luau, Lua, Python or JavaScript text become frames, so Roblox game servers,
   shell scripts and cron jobs can report too. See [Report API](#report-api).
 - **Alerts.** Each project has its own webhooks and email recipients, set in its settings: new
-  issues, regressions, or both, each with a **Send test** button. Webhooks work with Slack,
-  Discord, Mattermost, or any custom endpoint. Emails match the dashboard's look, include the
+  issues, regressions, or both, each with a **Send test** button. Discord, Slack, Mattermost
+  and Rocket.Chat webhooks get a branded Burrow card (posted as Burrow with the fox, a
+  severity colour bar, the issue linked, and its level, environment, release and event
+  count); any other URL gets plain JSON. Emails match the dashboard's look, include the
   issue's 14-day activity, and are capped at 20 an hour per address.
 - **Email (optional).** With SMTP set up, Burrow emails alerts and team invites. Admins can
   check the setup with **Send test email** on their account page.

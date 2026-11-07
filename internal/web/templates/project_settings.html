@@ -40,7 +40,7 @@
   {{if eq .Flash "webhook-no-trigger"}}<p class="alert error" role="alert">Pick at least one of new issues or regressions, or the webhook would never fire.</p>{{end}}
   {{if eq .Flash "webhook-limit"}}<p class="alert error" role="alert">A project can have up to {{.Data.MaxWebhooks}} webhooks. Remove one to add another.</p>{{end}}
   {{if eq .Flash "webhook-tested"}}{{with .Data.TestResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}{{end}}
-  <p class="muted">Burrow posts here when an issue is new or comes back after being resolved. Slack, Discord and Mattermost webhook URLs work as they are.</p>
+  <p class="muted">Burrow posts here when an issue is new or comes back after being resolved. Discord, Slack, Mattermost and Rocket.Chat webhooks get a rich Burrow card with the issue's details; any other URL gets JSON.</p>
   {{if not .Data.CanManage}}
   {{/* A webhook URL is a credential (anyone holding it can post to that
      channel), so only owners see them. */}}
@@ -51,7 +51,7 @@
     <li class="webhook" id="webhook-{{.ID}}">
       <span class="webhook-main">
         <code class="webhook-url">{{.URL}}</code>
-        <span class="help">{{if and .OnNew .OnRegression}}New issues and regressions{{else if .OnNew}}New issues only{{else}}Regressions only{{end}}</span>
+        <span class="help">{{webhookFormat .URL}} · {{if and .OnNew .OnRegression}}new issues and regressions{{else if .OnNew}}new issues only{{else}}regressions only{{end}}</span>
       </span>
       <span class="webhook-actions">
         <form method="post" action="/projects/{{$p.Slug}}/webhooks/{{.ID}}/test">
