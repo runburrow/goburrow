@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/runburrow/goburrow/internal/store"
 )
@@ -25,15 +26,15 @@ func TestTargetsFallbackOnlyWithoutProjectWebhooks(t *testing.T) {
 	p, _ := st.CreateProject(ctx, 0, "Shop", "go")
 	d := NewDispatcher(st, "https://fallback.test/hook", "https://burrow.test", true, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
-	if got := d.targets(ctx, p, false); !slices.Equal(got, []string{"https://fallback.test/hook"}) {
+	if got, _ := d.targets(ctx, p, false); !slices.Equal(got, []string{"https://fallback.test/hook"}) {
 		t.Errorf("no project webhooks: targets = %v, want the fallback", got)
 	}
 	st.CreateWebhook(ctx, p.ID, "https://chat.test/new", true, false)
 	st.CreateWebhook(ctx, p.ID, "https://chat.test/both", true, true)
-	if got := d.targets(ctx, p, false); !slices.Equal(got, []string{"https://chat.test/new", "https://chat.test/both"}) {
+	if got, _ := d.targets(ctx, p, false); !slices.Equal(got, []string{"https://chat.test/new", "https://chat.test/both"}) {
 		t.Errorf("new issue: targets = %v", got)
 	}
-	if got := d.targets(ctx, p, true); !slices.Equal(got, []string{"https://chat.test/both"}) {
+	if got, _ := d.targets(ctx, p, true); !slices.Equal(got, []string{"https://chat.test/both"}) {
 		t.Errorf("regression: targets = %v", got)
 	}
 	for u, want := range map[string]bool{"https://hooks.slack.com/x": true, "http://10.0.0.2:9000/h": true, "ftp://x": false, "hooks.slack.com/x": false, "": false} {
@@ -90,5 +91,25 @@ func TestInertDefusesChatMarkup(t *testing.T) {
 	}
 	if strings.ReplaceAll(got, zeroWidth, "") != "boom @channel <!here> [click](https://evil.test) a@b.co" {
 		t.Error("inert changed visible text")
+	}
+}
+
+func TestEmailLimitPerAddress(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	l := newEmailLimit(3, func() time.Time { return now })
+	for i := 0; i < 3; i++ {
+		if !l.allow("a@b.co") {
+			t.Fatalf("send %d refused", i)
+		}
+	}
+	if l.allow("a@b.co") {
+		t.Fatal("fourth send in the hour allowed")
+	}
+	if !l.allow("c@d.co") {
+		t.Fatal("addresses have separate limits")
+	}
+	now = now.Add(61 * time.Minute)
+	if !l.allow("a@b.co") {
+		t.Fatal("limit should reset after an hour")
 	}
 }

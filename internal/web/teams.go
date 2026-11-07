@@ -1,11 +1,14 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/runburrow/goburrow/internal/mail"
 	"github.com/runburrow/goburrow/internal/store"
 )
 
@@ -43,7 +46,7 @@ func (s *Server) teamDetail(w http.ResponseWriter, r *http.Request) {
 
 // renderTeam renders the team page. inviteURL is set right after creating
 // an invite: the raw token is only ever shown in that one response.
-func (s *Server) renderTeam(w http.ResponseWriter, r *http.Request, code int, inviteURL, errMsg string) {
+func (s *Server) renderTeam(w http.ResponseWriter, r *http.Request, code int, inviteURL, errMsg string, emailNote ...string) {
 	t, a, ok := s.loadTeam(w, r, accessMember)
 	if !ok {
 		return
@@ -68,6 +71,10 @@ func (s *Server) renderTeam(w http.ResponseWriter, r *http.Request, code int, in
 		"Error":     errMsg,
 		"Me":        sess.User.ID,
 		"InviteTTL": int(store.InviteTTL.Hours() / 24),
+		"CanEmail":  s.Notify != nil && s.Notify.Mail != nil,
+	}
+	if len(emailNote) > 0 {
+		data["EmailNote"] = emailNote[0]
 	}
 	if a >= accessOwner {
 		invites, err := s.Store.PendingInvites(r.Context(), t.ID)
@@ -163,17 +170,40 @@ func (s *Server) inviteCreate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	token, err := s.Store.CreateInvite(r.Context(), t.ID, store.Role(r.PostFormValue("role")),
-		r.PostFormValue("email"), sessionFrom(r.Context()).User.ID)
+	email := strings.TrimSpace(r.PostFormValue("email"))
+	if email != "" && !mail.ValidAddress(email) {
+		s.renderTeam(w, r, http.StatusBadRequest, "", "That email address doesn't look right.")
+		return
+	}
+	role := store.Role(r.PostFormValue("role"))
+	sess := sessionFrom(r.Context())
+	token, err := s.Store.CreateInvite(r.Context(), t.ID, role, email, sess.User.ID)
 	if err != nil {
 		s.renderTeam(w, r, http.StatusBadRequest, "", err.Error())
 		return
 	}
 	u := *s.BaseURL
 	u.Path = strings.TrimRight(u.Path, "/") + "/invite/" + token
+	// With email set up and an address given, Burrow sends the link too.
+	// The link is still shown once, so a failed send isn't a dead end.
+	note := ""
+	if email != "" && s.Notify != nil && s.Notify.Mail != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		err := s.Notify.Mail.Send(ctx, mail.InviteMessage(email, mail.Invite{
+			Team: t.Name, Role: string(role), InvitedBy: sess.User.Email, URL: u.String(), Expires: time.Now().Add(store.InviteTTL),
+		}))
+		cancel()
+		if err != nil {
+			_, why := mail.ErrorReason(err)
+			s.Log.Warn("invite email failed", "team", t.Slug, "err", err)
+			note = "Couldn't email it: " + why
+		} else {
+			note = "Also emailed to " + email + "."
+		}
+	}
 	// Rendered directly rather than redirected: the token must not end up
 	// in a URL, browser history, or access logs.
-	s.renderTeam(w, r, http.StatusOK, u.String(), "")
+	s.renderTeam(w, r, http.StatusOK, u.String(), "", note)
 }
 
 func (s *Server) inviteRevoke(w http.ResponseWriter, r *http.Request) {
@@ -255,18 +285,47 @@ func (s *Server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 // ----------------------------------------------------------------- account
 
 func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, http.StatusOK, "account", "Your account", map[string]string{})
+	s.render(w, r, http.StatusOK, "account", "Your account", s.accountData(r, ""))
+}
+
+func (s *Server) accountData(r *http.Request, errMsg string) map[string]any {
+	data := map[string]any{"Error": errMsg}
+	if s.Notify != nil && s.Notify.Mail != nil {
+		data["MailSetup"] = s.Notify.Mail.Describe()
+	}
+	if msg := emailResultMessage(r.URL.Query().Get("result")); msg != nil && r.URL.Query().Get("flash") == "test-email" {
+		data["TestResult"] = msg
+	}
+	return data
+}
+
+// accountTestEmail sends the "Burrow can send email" message to the admin
+// who pressed the button, to check the SMTP setup end to end.
+func (s *Server) accountTestEmail(w http.ResponseWriter, r *http.Request) {
+	sess := sessionFrom(r.Context())
+	if s.Notify == nil || s.Notify.Mail == nil {
+		http.Redirect(w, r, "/account?flash=test-email&result=off#email", http.StatusSeeOther)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	err := s.Notify.Mail.Send(ctx, mail.CheckMessage(mail.Check{Server: s.origin(), Setup: s.Notify.Mail.Describe(), To: sess.User.Email}))
+	code, _ := mail.ErrorReason(err)
+	if err != nil {
+		s.Log.Info("test email failed", "to", sess.User.Email, "err", err)
+	}
+	http.Redirect(w, r, "/account?flash=test-email&result="+code+"#email", http.StatusSeeOther)
 }
 
 func (s *Server) accountPassword(w http.ResponseWriter, r *http.Request) {
 	sess := sessionFrom(r.Context())
 	cur, next, next2 := r.PostFormValue("current"), r.PostFormValue("password"), r.PostFormValue("password2")
 	if next != next2 {
-		s.render(w, r, http.StatusBadRequest, "account", "Your account", map[string]string{"Error": "The new passwords don't match."})
+		s.render(w, r, http.StatusBadRequest, "account", "Your account", s.accountData(r, "The new passwords don't match."))
 		return
 	}
 	if err := s.Store.ChangePassword(r.Context(), sess.User.ID, cur, next, sess.Token); err != nil {
-		s.render(w, r, http.StatusBadRequest, "account", "Your account", map[string]string{"Error": err.Error()})
+		s.render(w, r, http.StatusBadRequest, "account", "Your account", s.accountData(r, err.Error()))
 		return
 	}
 	http.Redirect(w, r, "/account?flash=password", http.StatusSeeOther)

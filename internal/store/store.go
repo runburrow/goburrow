@@ -169,6 +169,17 @@ var migrations = []string{
 	UPDATE projects SET team_id = (SELECT id FROM teams WHERE slug = 'default');
 	INSERT INTO team_members (team_id, user_id, role, created_at)
 		SELECT t.id, u.id, 'owner', u.created_at FROM teams t, users u WHERE t.slug = 'default';`,
+
+	// 7: per-project email alert recipients, managed in project settings.
+	`CREATE TABLE email_alerts (
+		id            INTEGER PRIMARY KEY,
+		project_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+		address       TEXT NOT NULL COLLATE NOCASE,
+		on_new        INTEGER NOT NULL DEFAULT 1,
+		on_regression INTEGER NOT NULL DEFAULT 1,
+		created_at    INTEGER NOT NULL,
+		UNIQUE (project_id, address)
+	);`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {

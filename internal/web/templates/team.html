@@ -14,7 +14,7 @@
 
 {{with .Data.InviteURL}}
 <div class="alert ok" role="status">
-  <p><strong>Invite link created.</strong> Copy it now: for security it isn't shown again. It works once and expires in {{$.Data.InviteTTL}} days.</p>
+  <p><strong>Invite link created.</strong> {{with $.Data.EmailNote}}{{.}} {{end}}Copy it now: for security it isn't shown again. It works once and expires in {{$.Data.InviteTTL}} days.</p>
   <div class="copybox"><code id="invite-url">{{.}}</code><button type="button" class="small js-only" data-copy="#invite-url">Copy link</button></div>
 </div>
 {{end}}
@@ -100,7 +100,7 @@
     </label>
     <button type="submit">Create invite link</button>
   </form>
-  <p class="help invite-help" id="invite-email-help">With an email, only that address can use the link.</p>
+  <p class="help invite-help" id="invite-email-help">With an email, only that address can use the link{{if .Data.CanEmail}}, and Burrow emails it to them{{end}}.</p>
 
   {{if .Data.Invites}}
   <h3 class="snippet-title">Pending invites</h3>

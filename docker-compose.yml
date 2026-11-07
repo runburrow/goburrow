@@ -11,6 +11,12 @@ services:
       BURROW_RETENTION_DAYS: "30"
       # Fallback for projects without webhooks of their own (set those in project settings).
       # BURROW_WEBHOOK_URL: https://hooks.slack.com/services/...
+      # Email alerts and invites (optional):
+      # BURROW_SMTP_HOST: smtp.example.com
+      # BURROW_SMTP_PORT: "587"
+      # BURROW_SMTP_USERNAME: burrow@example.com
+      # BURROW_SMTP_PASSWORD: change-me
+      # BURROW_SMTP_FROM: Burrow <burrow@example.com>
     volumes:
       - burrow-data:/data
     # Burrow uses ~15 MB idle and under 50 MB busy (docs/benchmarks.md).

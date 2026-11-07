@@ -28,6 +28,24 @@
   </form>
 </section>
 
+{{if .Session.User.IsAdmin}}
+<section class="panel narrow-panel" id="email" aria-labelledby="email-heading">
+  <h2 id="email-heading">Email</h2>
+  {{with .Data.TestResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}
+  {{with .Data.MailSetup}}
+  <p class="muted">Burrow sends email alerts and invites through:</p>
+  <div class="copybox"><code>{{.}}</code></div>
+  <form method="post" action="/account/test-email" class="test-email-form">
+    <input type="hidden" name="csrf" value="{{$.Session.CSRF}}">
+    <button type="submit">Send test email</button>
+    <span class="help">Sends a short message to {{$.Session.User.Email}} to check the setup end to end.</span>
+  </form>
+  {{else}}
+  <p class="muted">Email isn't set up, so alerts go to webhooks only and invite links are copied by hand. To turn it on, set <code>BURROW_SMTP_HOST</code>, <code>BURROW_SMTP_FROM</code>, and if your server needs them <code>BURROW_SMTP_USERNAME</code> and <code>BURROW_SMTP_PASSWORD</code>, then restart Burrow. The README lists every setting.</p>
+  {{end}}
+</section>
+{{end}}
+
 <section class="panel narrow-panel" aria-labelledby="session-heading">
   <h2 id="session-heading">This device</h2>
   <form method="post" action="/logout">

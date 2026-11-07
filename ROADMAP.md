@@ -21,9 +21,9 @@ These are rough priorities, not promises.
 - [x] **Teams**: projects belong to teams, with owner/member roles and instance admins
 - [x] **Invite links**: single-use, expiring, hashed, optionally email-locked
 - [x] Account page (change password, which ends other sessions) and admin user management
+- [x] **Email**: SMTP for alert emails (per project, rate-limited) and sending invites, with test buttons
 
 ## Next up
-- [ ] **Email**: SMTP for alerts and for sending invites directly
 - [ ] **SSO**: OIDC login (GitHub, Google, Authentik, Keycloak…)
 - [ ] Per-project alert rules (env filters, etc.)
 - [ ] **Tag facets** on the issue page (e.g. "80% of events: browser=Safari")

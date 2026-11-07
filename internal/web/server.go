@@ -89,6 +89,9 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /projects/{slug}/webhooks", s.authed(s.webhookCreate))
 	mux.HandleFunc("POST /projects/{slug}/webhooks/{id}/test", s.authed(s.webhookTest))
 	mux.HandleFunc("POST /projects/{slug}/webhooks/{id}/delete", s.authed(s.webhookDelete))
+	mux.HandleFunc("POST /projects/{slug}/email-alerts", s.authed(s.emailAlertCreate))
+	mux.HandleFunc("POST /projects/{slug}/email-alerts/{id}/test", s.authed(s.emailAlertTest))
+	mux.HandleFunc("POST /projects/{slug}/email-alerts/{id}/delete", s.authed(s.emailAlertDelete))
 	mux.HandleFunc("GET /issues/{id}", s.authed(s.issueDetail))
 	mux.HandleFunc("POST /issues/{id}/status", s.authed(s.issueSetStatus))
 	mux.HandleFunc("POST /issues/{id}/delete", s.authed(s.issueDelete))
@@ -110,6 +113,7 @@ func (s *Server) Handler() (http.Handler, error) {
 
 	mux.HandleFunc("GET /account", s.authed(s.accountPage))
 	mux.HandleFunc("POST /account/password", s.authed(s.accountPassword))
+	mux.HandleFunc("POST /account/test-email", s.authed(s.adminOnly(s.accountTestEmail)))
 
 	mux.HandleFunc("GET /admin/users", s.authed(s.adminOnly(s.adminUsers)))
 	mux.HandleFunc("POST /admin/users/{user}/admin", s.authed(s.adminOnly(s.adminSetAdmin)))

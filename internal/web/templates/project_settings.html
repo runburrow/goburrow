@@ -87,6 +87,66 @@
   {{end}}
 </section>
 
+<section class="panel" id="email-alerts" aria-labelledby="email-alerts-heading">
+  <div class="panel-head">
+    <h2 id="email-alerts-heading">Email alerts</h2>
+    <span class="panel-meta">{{if .Data.EmailAlerts}}{{len .Data.EmailAlerts}} of {{.Data.MaxEmailAlerts}} used{{else}}Up to {{.Data.MaxEmailAlerts}}{{end}}</span>
+  </div>
+  {{if eq .Flash "email-added"}}<p class="alert ok" role="status">Address added. Send a test to check it arrives.</p>{{end}}
+  {{if eq .Flash "email-removed"}}<p class="alert ok" role="status">Address removed. It won't get this project's alerts any more.</p>{{end}}
+  {{if eq .Flash "email-invalid"}}<p class="alert error" role="alert">That doesn't look like an email address. Use one plain address, like dev@example.com.</p>{{end}}
+  {{if eq .Flash "email-no-trigger"}}<p class="alert error" role="alert">Pick at least one of new issues or regressions, or the address would never get anything.</p>{{end}}
+  {{if eq .Flash "email-limit"}}<p class="alert error" role="alert">A project can email up to {{.Data.MaxEmailAlerts}} addresses. Remove one to add another.</p>{{end}}
+  {{if eq .Flash "email-exists"}}<p class="alert error" role="alert">That address already gets this project's alerts.</p>{{end}}
+  {{if eq .Flash "email-off"}}<p class="alert error" role="alert">Email isn't set up on this server yet.</p>{{end}}
+  {{if eq .Flash "email-tested"}}{{with .Data.EmailResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}{{end}}
+  <p class="muted">Burrow emails these addresses when an issue is new or comes back after being resolved. Each address gets at most 20 alert emails an hour, so an error storm can't bury an inbox.</p>
+  {{if not .Data.MailOn}}
+  <p class="webhook-empty">Email isn't set up on this server. An admin sets <code>BURROW_SMTP_HOST</code>, <code>BURROW_SMTP_FROM</code> and the other SMTP settings, then restarts Burrow.</p>
+  {{else if not .Data.CanManage}}
+  <p class="webhook-empty">{{with len .Data.EmailAlerts}}{{.}} {{plural . "address gets" "addresses get"}} these alerts.{{else}}No one gets these alerts by email yet.{{end}} Team owners manage the list.</p>
+  {{else}}
+  {{if .Data.EmailAlerts}}
+  <ul class="webhook-list">
+    {{range .Data.EmailAlerts}}
+    <li class="webhook" id="email-alert-{{.ID}}">
+      <span class="webhook-main">
+        <span class="row-title">{{.Address}}</span>
+        <span class="help">{{if and .OnNew .OnRegression}}New issues and regressions{{else if .OnNew}}New issues only{{else}}Regressions only{{end}}</span>
+      </span>
+      <span class="webhook-actions">
+        <form method="post" action="/projects/{{$p.Slug}}/email-alerts/{{.ID}}/test">
+          <input type="hidden" name="csrf" value="{{$.Session.CSRF}}">
+          <button type="submit" class="small">Send test</button>
+        </form>
+        <form method="post" action="/projects/{{$p.Slug}}/email-alerts/{{.ID}}/delete">
+          <input type="hidden" name="csrf" value="{{$.Session.CSRF}}">
+          <button type="submit" class="small destructive" aria-label="Remove {{.Address}}">Remove</button>
+        </form>
+      </span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="webhook-empty">No one gets these alerts by email yet.</p>
+  {{end}}
+  {{if lt (len .Data.EmailAlerts) .Data.MaxEmailAlerts}}
+  <form method="post" action="/projects/{{$p.Slug}}/email-alerts" class="webhook-form">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <label for="email-alert-address"><span>Email address</span>
+      <input id="email-alert-address" name="address" type="email" required maxlength="254" placeholder="dev@example.com" autocomplete="off" spellcheck="false">
+    </label>
+    <fieldset class="webhook-triggers">
+      <legend>Email when</legend>
+      <label class="check"><input type="checkbox" name="on_new" value="1" checked> A new issue appears</label>
+      <label class="check"><input type="checkbox" name="on_regression" value="1" checked> A resolved issue happens again</label>
+    </fieldset>
+    <button type="submit">Add address</button>
+  </form>
+  {{end}}
+  {{end}}
+</section>
+
 {{if .Data.CanManage}}
 <section class="panel danger-zone" aria-labelledby="danger-heading">
   <h2 id="danger-heading">Delete project</h2>

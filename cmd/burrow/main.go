@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/runburrow/goburrow/internal/ingest"
+	"github.com/runburrow/goburrow/internal/mail"
 	"github.com/runburrow/goburrow/internal/notify"
 	"github.com/runburrow/goburrow/internal/store"
 	"github.com/runburrow/goburrow/internal/web"
@@ -42,6 +43,11 @@ func main() {
 		rateLimit = flag.Int("rate-limit", atoi(env("BURROW_RATE_LIMIT", "3000")), "events per minute each project may send, 0 = no limit (BURROW_RATE_LIMIT)")
 		proxy     = flag.Bool("behind-proxy", env("BURROW_BEHIND_PROXY", "") == "true", "trust the last X-Forwarded-For entry as the client address, for login throttling behind a reverse proxy (BURROW_BEHIND_PROXY=true)")
 		whPrivate = flag.Bool("webhook-allow-private", env("BURROW_WEBHOOK_ALLOW_PRIVATE", "") == "true", "allow webhooks on private/LAN addresses, which are refused by default (BURROW_WEBHOOK_ALLOW_PRIVATE=true)")
+		smtpHost  = flag.String("smtp-host", env("BURROW_SMTP_HOST", ""), "SMTP server for email alerts and invites; email is off when empty (BURROW_SMTP_HOST)")
+		smtpPort  = flag.Int("smtp-port", atoi(env("BURROW_SMTP_PORT", "587")), "SMTP port (BURROW_SMTP_PORT)")
+		smtpUser  = flag.String("smtp-username", env("BURROW_SMTP_USERNAME", ""), "SMTP username (BURROW_SMTP_USERNAME)")
+		smtpFrom  = flag.String("smtp-from", env("BURROW_SMTP_FROM", ""), "address emails come from, e.g. \"Burrow <burrow@example.com>\" (BURROW_SMTP_FROM)")
+		smtpTLS   = flag.String("smtp-tls", env("BURROW_SMTP_TLS", ""), "tls (port 465), starttls (587, the default) or none for a relay on this machine (BURROW_SMTP_TLS)")
 		showVer   = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
@@ -52,7 +58,11 @@ func main() {
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	if err := run(log, config{addr: *addr, dbPath: *dbPath, baseURL: *baseURL, retentionDays: *retention, rateLimit: *rateLimit,
-		webhookURL: *webhook, webhookAllowPrivate: *whPrivate, behindProxy: *proxy}); err != nil {
+		webhookURL: *webhook, webhookAllowPrivate: *whPrivate, behindProxy: *proxy,
+		// The password only comes from the environment: flags show up in
+		// process listings.
+		smtp: mail.Config{Host: *smtpHost, Port: *smtpPort, Username: *smtpUser, Password: os.Getenv("BURROW_SMTP_PASSWORD"), From: *smtpFrom, TLS: *smtpTLS},
+	}); err != nil {
 		log.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -74,6 +84,7 @@ type config struct {
 	webhookURL            string
 	webhookAllowPrivate   bool
 	behindProxy           bool
+	smtp                  mail.Config // Host empty: no email
 }
 
 func run(log *slog.Logger, c config) error {
@@ -104,6 +115,25 @@ func run(log *slog.Logger, c config) error {
 		}
 	}
 	alerts := notify.NewDispatcher(st, c.webhookURL, bu.String(), c.webhookAllowPrivate, log)
+	if c.smtp.Host != "" {
+		m, err := mail.New(c.smtp)
+		if err != nil {
+			return fmt.Errorf("SMTP: %w", err)
+		}
+		alerts.Mail = m
+		// Check the connection once in the background: a bad setup is
+		// logged at startup, not discovered with the first alert.
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			if err := m.Check(ctx); err != nil {
+				_, why := mail.ErrorReason(err)
+				log.Warn("SMTP check failed; email alerts and invites won't send", "server", m.Describe(), "reason", why, "err", err)
+				return
+			}
+			log.Info("SMTP ready", "server", m.Describe())
+		}()
+	}
 	ing := &ingest.Handler{Store: st, Log: log, Notifier: alerts, Limit: ingest.NewRateLimiter(c.rateLimit)}
 	srv := &web.Server{Store: st, Ingest: ing, Notify: alerts, Log: log, BaseURL: bu, Version: version, BehindProxy: c.behindProxy}
 	h, err := srv.Handler()

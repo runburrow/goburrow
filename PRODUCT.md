@@ -18,7 +18,7 @@ A single ~14 MB binary with an embedded dashboard and SQLite storage ("the error
 ## Operating Context
 - Server-rendered Go html/template pages; no JS build chain; pages must work with JavaScript disabled (app.js is progressive enhancement only).
 - Strict CSP: no inline scripts or third-party hosts; assets are embedded in the binary.
-- Screens: setup (first-run admin account and first team), login, invite (join a team, signing up if needed), teams list, team (projects, members and roles, invite links, rename, delete), account (change password), admin users (make/remove admin, delete account), projects list, new project, project settings (setup steps per platform, DSN, report API, key rotation, webhooks, test event), issues list (search, sort, status), issue detail (chained exceptions, frames with source context and locals, breadcrumbs, request, user, tags, contexts, raw JSON, 14-day activity chart; resolve/ignore/delete), error page.
+- Screens: setup (first-run admin account and first team), login, invite (join a team, signing up if needed), teams list, team (projects, members and roles, invite links, rename, delete), account (change password), admin users (make/remove admin, delete account), projects list, new project, project settings (setup steps per platform, DSN, report API, key rotation, webhooks, email alerts, test event), issues list (search, sort, status), issue detail (chained exceptions, frames with source context and locals, breadcrumbs, request, user, tags, contexts, raw JSON, 14-day activity chart; resolve/ignore/delete), error page.
 - Issue states: unresolved, resolved, ignored; a resolved issue that recurs reopens as a regression. Levels: fatal, error, warning, info, debug.
 - Light and dark colour schemes follow the OS setting.
 

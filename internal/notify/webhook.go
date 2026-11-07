@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/runburrow/goburrow/internal/event"
+	"github.com/runburrow/goburrow/internal/mail"
 	"github.com/runburrow/goburrow/internal/store"
 )
 
@@ -27,12 +28,14 @@ import (
 type Dispatcher struct {
 	Store        *store.Store
 	FallbackURL  string
-	BaseURL      string // public dashboard URL for links
-	AllowPrivate bool   // permit webhooks on private/local networks (see ssrf.go)
+	BaseURL      string       // public dashboard URL for links
+	AllowPrivate bool         // permit webhooks on private/local networks (see ssrf.go)
+	Mail         *mail.Mailer // nil when SMTP isn't configured
 	Log          *slog.Logger
 	Client       *http.Client
 
-	sem chan struct{}
+	sem    chan struct{}
+	emails *emailLimit
 }
 
 func NewDispatcher(st *store.Store, fallbackURL, baseURL string, allowPrivate bool, log *slog.Logger) *Dispatcher {
@@ -40,6 +43,7 @@ func NewDispatcher(st *store.Store, fallbackURL, baseURL string, allowPrivate bo
 		Store: st, FallbackURL: fallbackURL, BaseURL: strings.TrimRight(baseURL, "/"), AllowPrivate: allowPrivate, Log: log,
 		Client: newClient(allowPrivate),
 		sem:    make(chan struct{}, 8), // bound concurrent deliveries
+		emails: newEmailLimit(emailsPerHour, time.Now),
 	}
 }
 
@@ -63,30 +67,45 @@ type payload struct {
 	} `json:"burrow"`
 }
 
-// targets returns the URLs to alert for this kind of event in project p.
-func (d *Dispatcher) targets(ctx context.Context, p *store.Project, regressed bool) []string {
+// targets returns the webhook URLs and email addresses to alert for this
+// kind of event in project p. The server-wide fallback webhook is only used
+// when the project has no alert destinations of its own.
+func (d *Dispatcher) targets(ctx context.Context, p *store.Project, regressed bool) (urls, emails []string) {
 	hooks, err := d.Store.ListWebhooks(ctx, p.ID)
 	if err != nil {
 		d.Log.Error("list webhooks", "project", p.Slug, "err", err)
-		return nil
+		return nil, nil
 	}
-	if len(hooks) == 0 {
+	addrs, err := d.Store.ListEmailAlerts(ctx, p.ID)
+	if err != nil {
+		d.Log.Error("list email alerts", "project", p.Slug, "err", err)
+		return nil, nil
+	}
+	if len(hooks) == 0 && len(addrs) == 0 {
 		if d.FallbackURL != "" {
-			return []string{d.FallbackURL}
+			return []string{d.FallbackURL}, nil
 		}
-		return nil
+		return nil, nil
 	}
-	var urls []string
+	wants := func(onNew, onRegression bool) bool { return (regressed && onRegression) || (!regressed && onNew) }
 	for _, h := range hooks {
-		if (regressed && h.OnRegression) || (!regressed && h.OnNew) {
+		if wants(h.OnNew, h.OnRegression) {
 			urls = append(urls, h.URL)
 		}
 	}
-	return urls
+	if d.Mail != nil {
+		for _, a := range addrs {
+			if wants(a.OnNew, a.OnRegression) {
+				emails = append(emails, a.Address)
+			}
+		}
+	}
+	return urls, emails
 }
 
 func (d *Dispatcher) IssueEvent(ctx context.Context, p *store.Project, issueID int64, ev *event.Event, res *store.IngestResult) {
-	urls := d.targets(ctx, p, res.Regressed)
+	urls, emails := d.targets(ctx, p, res.Regressed)
+	d.emailAlert(ctx, p, issueID, ev, res, emails)
 	if len(urls) == 0 {
 		return
 	}

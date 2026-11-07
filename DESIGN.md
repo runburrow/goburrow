@@ -190,6 +190,8 @@ Burrow reads like a ledger kept by something small and patient that lives underg
 
 The system has two surfaces on one token set. **Operate** (the embedded dashboard) is dense, quiet, and triage-first: a 14px body, a five-step type scale, list rows at 64px, the fox kept to the edges of the work. **Persuade** (the landing page, in [runburrow/landing](https://github.com/runburrow/landing)) uses the same tokens, glyphs, bars and fox, and is allowed a larger display size, a 16px body, roomier sections, and one lifted container: the live sample issue list that is the hero. Persuade proves the product by running a piece of it at app scale, never by depicting it.
 
+Email (alerts, invites, the SMTP test) carries the same world into mail clients: a dark header band with the 32px fox mark (inlined as a PNG, never SVG) and the mono wordmark, a warm-stone page with a `surface` card, ink text and an ink button, mono for culprits, releases and figures, and the 14-day activity as 2px hairline bars in a table. Rust stays on the fox; red only marks fatal and regression. It is built from tables and inline styles, with a `prefers-color-scheme: dark` stylesheet for the clients that honour it, and every message has a plain-text twin.
+
 Light mode is warm stone rather than white or cream: a hint of the earth the fox digs in. Both schemes follow the OS setting; neither is the "alternate".
 
 **Key Characteristics:**

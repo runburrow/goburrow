@@ -328,19 +328,28 @@ func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	emails, err := s.Store.ListEmailAlerts(r.Context(), p.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	setup := setupFor(p.Platform, s.DSN(p), s.ReportURL(p), p.PublicKey)
 	s.render(w, r, http.StatusOK, "project_settings", p.Name+" · Settings", map[string]any{
-		"Project":      p,
-		"CanManage":    a >= accessOwner,
-		"DSN":          s.DSN(p),
-		"ReportURL":    s.ReportURL(p),
-		"Setup":        setup,
-		"Reach":        reachWarning(s.BaseURL, setup.Reach, platformName(p.Platform)),
-		"PlatformName": platformName(p.Platform),
-		"Webhooks":     hooks,
-		"MaxWebhooks":  store.MaxWebhooksPerProject,
-		"Fallback":     s.Notify != nil && s.Notify.FallbackURL != "",
-		"TestResult":   testResultMessage(r.URL.Query().Get("result")),
+		"Project":        p,
+		"CanManage":      a >= accessOwner,
+		"DSN":            s.DSN(p),
+		"ReportURL":      s.ReportURL(p),
+		"Setup":          setup,
+		"Reach":          reachWarning(s.BaseURL, setup.Reach, platformName(p.Platform)),
+		"PlatformName":   platformName(p.Platform),
+		"Webhooks":       hooks,
+		"MaxWebhooks":    store.MaxWebhooksPerProject,
+		"Fallback":       s.Notify != nil && s.Notify.FallbackURL != "",
+		"TestResult":     testResultMessage(r.URL.Query().Get("result")),
+		"EmailAlerts":    emails,
+		"MaxEmailAlerts": store.MaxEmailAlertsPerProject,
+		"MailOn":         s.mailOn(),
+		"EmailResult":    emailResultMessage(r.URL.Query().Get("result")),
 	})
 }
 
