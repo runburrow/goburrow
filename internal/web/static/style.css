@@ -238,7 +238,7 @@ table { border-collapse: collapse; width: 100%; }
   .rail-email, .hide-narrow { display: none; }
   .tab { font-size: var(--fs-1); }
   .rail-account form { margin: 0; }
-  .rail-account button.link { min-height: 44px; padding: 0 8px; }
+  .rail-account button.link { min-height: 44px; padding: 0 8px; white-space: nowrap; }
   main.main, main { padding: 22px 16px 40px; }
   .pagehead { flex-wrap: nowrap; align-items: flex-start; }
   .pagehead > .button { flex: 0 0 auto; }
