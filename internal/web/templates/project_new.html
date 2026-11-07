@@ -1,31 +1,29 @@
 {{define "content"}}
 <header class="pagehead">
   <div class="pagehead-copy">
-    <span class="note tape-note" aria-hidden="true">New tape</span>
     <h1>New project</h1>
-    <p class="mono muted">One app, one DSN. Name it and pick a platform.</p>
+    <p class="muted">Each project gets its own DSN. Use one per app or service.</p>
   </div>
 </header>
 
-<section class="panel admin-panel narrow-panel">
+<section class="panel narrow-panel">
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/projects/new" class="stack">
     <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
     <label for="project-name">Name
-      <input id="project-name" name="name" required maxlength="100" placeholder="checkout-api" autocomplete="off" autofocus>
-      <span class="help">Shown on the tracklist. Up to 100 characters.</span>
+      <input id="project-name" name="name" required maxlength="100" placeholder="e.g. checkout-api" autocomplete="off" autofocus aria-describedby="project-name-help">
+      <span class="help" id="project-name-help">Shown in the project list. Up to 100 characters.</span>
     </label>
     <label for="project-platform">Platform
-      <select id="project-platform" name="platform">
+      <select id="project-platform" name="platform" aria-describedby="project-platform-help">
         {{range .Data.Platforms}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
       </select>
-      <span class="help">Picks the SDK snippet on the settings page. You can still use any Sentry SDK.</span>
+      <span class="help" id="project-platform-help">Picks the SDK snippet on the settings page. Any Sentry SDK works.</span>
     </label>
     <div class="form-actions">
       <button class="primary" type="submit">Create project</button>
       <a class="button" href="/">Cancel</a>
     </div>
   </form>
-  <p class="note form-note" aria-hidden="true">one DSN per burrow</p>
 </section>
 {{end}}

@@ -1,11 +1,8 @@
 {{define "content"}}
 <section class="error-card">
-  <div class="error-fox" aria-hidden="true">
-    {{template "fox-peek" .}}
-    <span class="note error-note">nothing down here</span>
-  </div>
+  <span class="error-fox burrow pop-up" aria-hidden="true">{{template "fox-peek" .}}</span>
   <h1>{{.Title}}</h1>
-  <p class="mono error-line">{{.Data}}</p>
-  <p><a class="button" href="/">← Back to projects</a></p>
+  <p class="muted">{{.Data}}</p>
+  <p><a class="button" href="/">Back to projects</a></p>
 </section>
 {{end}}

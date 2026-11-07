@@ -141,22 +141,36 @@ func (s *Store) IssueByID(ctx context.Context, id int64) (*Issue, error) {
 type IssueFilter struct {
 	Status IssueStatus // empty = any
 	Query  string      // substring match on title/culprit
+	Levels []string    // empty = any; otherwise level IN (...)
 	Sort   string      // "last_seen" (default), "first_seen", "times_seen"
 	Limit  int
 	Offset int
 }
 
-func (s *Store) ListIssues(ctx context.Context, projectID int64, f IssueFilter) ([]*Issue, error) {
+// issueWhere builds the WHERE clause shared by ListIssues and
+// FilteredStatusCounts. Status is left to the caller.
+func issueWhere(projectID int64, f IssueFilter) ([]string, []any) {
 	where := []string{"project_id = ?"}
 	args := []any{projectID}
-	if f.Status != "" {
-		where = append(where, "status = ?")
-		args = append(args, string(f.Status))
-	}
 	if q := strings.TrimSpace(f.Query); q != "" {
 		like := "%" + escapeLike(q) + "%"
 		where = append(where, `(title LIKE ? ESCAPE '\' OR culprit LIKE ? ESCAPE '\')`)
 		args = append(args, like, like)
+	}
+	if len(f.Levels) > 0 {
+		where = append(where, "level IN (?"+strings.Repeat(",?", len(f.Levels)-1)+")")
+		for _, l := range f.Levels {
+			args = append(args, l)
+		}
+	}
+	return where, args
+}
+
+func (s *Store) ListIssues(ctx context.Context, projectID int64, f IssueFilter) ([]*Issue, error) {
+	where, args := issueWhere(projectID, f)
+	if f.Status != "" {
+		where = append(where, "status = ?")
+		args = append(args, string(f.Status))
 	}
 	order := "last_seen DESC"
 	switch f.Sort {

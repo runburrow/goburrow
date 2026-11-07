@@ -76,6 +76,8 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("GET /issues/{id}", s.authed(s.issueDetail))
 	mux.HandleFunc("POST /issues/{id}/status", s.authed(s.issueSetStatus))
 	mux.HandleFunc("POST /issues/{id}/delete", s.authed(s.issueDelete))
+	mux.HandleFunc("POST /projects/{slug}/issues/status", s.authed(s.issueBulkStatus))
+	mux.HandleFunc("/", s.withSession(s.notFound)) // unknown routes get the designed 404, not net/http's plain text
 
 	return s.securityHeaders(mux), nil
 }
@@ -139,7 +141,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 }
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, http.StatusNotFound, "error", "Not found", "We dug around but couldn't find that.")
+	s.render(w, r, http.StatusNotFound, "error", "Not found", "Dug here, found nothing. The page may have moved, or the link is wrong.")
 }
 
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
@@ -190,6 +192,19 @@ func (s *Server) authed(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, sess)))
+	}
+}
+
+// withSession attaches the session when there is a valid one, without
+// requiring it, so public pages like the 404 keep the app navigation.
+func (s *Server) withSession(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie(sessionCookie); err == nil {
+			if sess, err := s.Store.SessionByToken(r.Context(), c.Value); err == nil {
+				r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, sess))
+			}
+		}
+		next(w, r)
 	}
 }
 

@@ -1,343 +1,53 @@
-/*
- * Night Tape — projects, new project, settings, setup, login, error.
- * Page-only. Shared components stay in style.css. No inline styles.
- */
+/* Projects, new project, settings, setup, login, error. Shared parts live in style.css. */
 
-/* ---- Projects tracklist ---- */
-.projects-pagehead { align-items: flex-end; }
-.tape-note {
-  display: block;
-  margin: 0 0 2px 2px;
-  transform: rotate(-6deg);
-  font-size: 1.45rem;
-}
-.project-tracklist { margin-bottom: 8px; }
-.project-tracklist-head,
-.project-track {
-  grid-template-columns: 44px minmax(150px, 1.35fr) minmax(160px, 1.3fr) minmax(76px, .45fr) minmax(88px, .5fr) 22px;
-}
-.project-track { position: relative; }
-.project-track .track-main { position: relative; padding-right: 8px; }
-.project-track .track-title { font-size: 1.05rem; line-height: 1.35; }
-.project-track .track-culprit { font-size: .72rem; margin-top: 4px; }
-.all-clear {
-  position: absolute;
-  left: 38px;
-  bottom: -1.45rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 1.35rem;
-  transform: rotate(-5deg);
-  pointer-events: none;
-  white-space: nowrap;
-  text-decoration: underline;
-  text-underline-offset: .15em;
-}
-.all-clear-arrow {
-  width: 24px;
-  height: 18px;
-  flex: 0 0 auto;
-  transform: translateY(-3px);
-}
-.project-count { display: block; font-size: 1.25rem; line-height: 1.15; font-weight: 500; }
-.track-cell-label {
-  display: block;
-  color: var(--muted);
-  font: .62rem/1.3 var(--mono);
-  letter-spacing: .04em;
-  text-transform: lowercase;
-}
-.track-chevron {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  color: var(--muted);
-}
-.project-track:hover .track-chevron { color: var(--text); }
-.track-chevron .icon { width: 16px; height: 16px; }
-.projects-fox {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  max-width: 280px;
-  margin: 28px 0 0 auto;
-  color: var(--text);
-}
-.projects-fox .fox { width: 150px; height: auto; }
-.projects-fox .note { transform: rotate(-8deg); font-size: 1.45rem; margin-bottom: 18px; }
+/* Projects list ---------------------------------------------------------- */
+.project-list .tracklist-head, .project-row { grid-template-columns: minmax(0, 1fr) minmax(150px, 1.3fr) 96px 112px; }
+.project-row { min-height: 72px; }
+.project-row .figure { font-size: var(--fs-3); }
 
-/* ---- Settings / new project panels ---- */
-.admin-panel { padding-top: 22px; }
-.narrow-panel { max-width: 520px; }
-.form-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.form-note { display: block; margin: 18px 0 0; transform: rotate(-4deg); font-size: 1.4rem; }
-.copy-note {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 5px;
-  transform: rotate(-8deg);
-  font-size: 1.3rem;
-  white-space: nowrap;
-}
-.copy-note-arrow { width: 24px; height: 19px; flex: 0 0 auto; transform: translateY(4px); }
-.dsn-label {
-  display: block;
-  margin: 14px 0 6px;
-  font-size: .72rem;
-  color: var(--text);
-  letter-spacing: .04em;
-}
-.dsn-row {
-  display: flex;
-  align-items: stretch;
-  gap: 12px;
-  margin-bottom: 18px;
-  min-width: 0;
-}
-.dsn-box {
-  flex: 1 1 auto;
-  margin-bottom: 0;
-  min-height: 44px;
-  padding: 10px 14px;
-}
-.dsn-box code {
-  overflow-x: auto;
-  overflow-wrap: normal;
-  white-space: nowrap;
-  font-size: .8rem;
-}
-.dsn-copy-btn { display: none; }
-.js .dsn-copy-btn {
-  display: inline-flex;
-  flex: 0 0 auto;
-  min-width: 112px;
-  min-height: 44px;
-}
-.dsn-copy-btn .icon { width: 16px; height: 16px; }
-.settings-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px 24px;
-  margin-top: 4px;
-}
-.settings-actions form {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-}
-.settings-actions form button {
-  min-height: 42px;
-  padding: 9px 18px;
-}
-.settings-actions form:first-child button { min-width: 220px; justify-content: flex-start; }
-.settings-actions form button .icon { width: 16px; height: 16px; }
-.settings-actions .help { max-width: 38ch; }
-.admin-panel .code-scroll { max-width: 100%; overflow-x: auto; margin-bottom: 12px; }
-.admin-panel pre.code { margin-bottom: 0; }
+/* Settings and new project ----------------------------------------------- */
+.narrow-panel { max-width: 520px; padding-top: 0; border-top: 0; }
+.settings-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 28px; }
+.settings-actions > form { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.rotate-details > summary { list-style: none; }
+.rotate-details > summary::-webkit-details-marker { display: none; }
+.rotate-details[open] > summary { background: var(--surface-2); }
+.rotate-details form { max-width: 44ch; margin-top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); }
+.rotate-details form p { margin: 0; }
+.panel .code-scroll { margin-bottom: 12px; border-radius: var(--radius); }
+.danger-zone h2 { color: var(--red-text); }
+.delete-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; max-width: 640px; }
+.delete-form label { flex: 1 1 260px; display: flex; flex-direction: column; gap: 6px; font-weight: 500; }
 
-/* Danger zone bordered box matching settings mockup */
-.panel.danger-box {
-  margin-top: 28px;
-  padding: 20px 22px;
-  border: 1px solid var(--red);
-  border-radius: var(--radius);
-}
-.danger-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-.danger-icon {
-  width: 26px;
-  height: 26px;
-  color: var(--red-text);
-  margin-top: 2px;
-}
-.danger-head h2 { margin: 0 0 4px; font-size: 1.02rem; }
-.danger-head p { margin: 0; font-size: .78rem; }
-.delete-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px 18px;
-}
-.delete-form label {
-  flex: 1 1 260px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font: .74rem/1.4 var(--mono);
-  min-width: 0;
-}
-.delete-form button.destructive {
-  flex: 0 0 auto;
-  min-height: 43px;
-  padding: 9px 16px;
-}
-.delete-form button.destructive .icon { width: 16px; height: 16px; }
+/* Auth ------------------------------------------------------------------- */
+.auth-shell main { display: flex; justify-content: center; padding-top: 48px; }
+.auth-card { width: min(380px, 100%); }
+.auth-fox { display: block; width: 120px; margin: 0 0 12px -8px; }
+.auth-fox .fox { display: block; width: 100%; height: auto; }
+.auth-card h1 { font-size: var(--fs-4); margin-bottom: 4px; }
+.auth-card > p { margin-bottom: 20px; }
+.auth-card .stack { margin-top: 20px; }
+.auth-card .alert { margin: 16px 0 0; }
+.auth-submit { align-self: stretch !important; min-height: 44px; }
 
-/* ---- Auth: setup + login ---- */
-.auth-shell main { display: flex; justify-content: center; }
-.auth-card {
-  width: min(440px, 100%);
-  margin: 8px auto 28px;
-  text-align: center;
-}
-.auth-fox {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  min-height: 112px;
-  margin: 4px 0 10px;
-}
-.auth-fox .fox { width: 196px; height: auto; }
-.fox .hole-cover { fill: var(--bg); }
-.fox .grass-ticks, .fox .dirt-mound { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; }
-.auth-note {
-  position: absolute;
-  right: -28px;
-  top: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transform: rotate(-8deg);
-  font-size: 1.38rem;
-  text-align: left;
-  line-height: 1.05;
-}
-.auth-note-arrow { width: 30px; height: 20px; flex: 0 0 auto; transform: translateY(8px); }
-.auth-note-underline {
-  text-decoration: underline;
-  text-underline-offset: .16em;
-}
-.auth-card h1 {
-  font-size: clamp(2rem, 3.2vw, 2.55rem);
-  margin-bottom: 6px;
-}
-.auth-lead { margin: 0 0 24px; font: .82rem/1.5 var(--mono); }
-.auth-form { gap: 12px; text-align: left; }
-.auth-field {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center;
-  gap: 14px !important;
-  padding: 9px 14px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--bg);
-  cursor: text;
-}
-.auth-field:focus-within {
-  outline: 2px solid var(--text);
-  outline-offset: 3px;
-  border-color: var(--blue);
-}
-.auth-field-icon {
-  width: 20px;
-  height: 20px;
-  color: var(--text);
-  opacity: .85;
-}
-.auth-field-body {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.auth-field-label {
-  font: .68rem/1.25 var(--mono);
-  color: var(--text);
-}
-.auth-field input:not([type=hidden]) {
-  min-height: 24px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: .8rem/1.4 var(--mono);
-}
-.auth-field input:focus-visible { outline: 0; }
-.auth-card .alert { text-align: left; margin-bottom: 16px; }
-.auth-submit {
-  width: 100%;
-  min-height: 44px;
-  margin-top: 2px;
-  font-weight: 500;
-}
-.auth-foot { margin-top: 22px; }
-
-/* ---- Error ---- */
-.error-card {
-  width: min(520px, 100%);
-  margin: 36px auto;
-  text-align: center;
-}
-.error-fox {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 220px;
-  max-width: 80%;
-  margin: 0 auto 8px;
-}
+/* Error ------------------------------------------------------------------ */
+.error-card { width: min(460px, 100%); margin: 48px auto; }
+.error-fox { display: block; width: 140px; margin: 0 0 14px -8px; }
+.error-fox.burrow .fox { display: block; width: 100%; height: auto; }
 .error-fox .fox { display: block; width: 100%; height: auto; }
-.error-note {
-  display: block;
-  margin: 4px 0 6px;
-  transform: rotate(-6deg);
-  font-size: 1.55rem;
-}
-.error-line { margin: 0 0 22px; overflow-wrap: anywhere; }
 
-@media (max-width: 860px) {
-  .project-tracklist-head,
-  .project-track {
-    grid-template-columns: 40px minmax(0, 1.3fr) minmax(110px, 1fr) 68px 78px 18px;
-    gap: 12px;
-  }
-  .projects-fox { margin-left: 0; }
-  .auth-note { right: -6px; font-size: 1.25rem; }
+@media (max-width: 1100px) {
+  .project-list .tracklist-head, .project-row { grid-template-columns: minmax(0, 1fr) 120px 96px 104px; }
 }
-
 @media (max-width: 700px) {
-  .project-tracklist-head { display: none; }
-  .project-track {
-    grid-template-columns: 34px minmax(0, 1fr) auto;
-    gap: 10px 12px;
-    padding: 20px 4px 28px;
-  }
-  .project-track .track-no { grid-column: 1; grid-row: 1; }
-  .project-track .track-main { grid-column: 2; grid-row: 1; }
-  .project-track .track-chevron { grid-column: 3; grid-row: 1; }
-  .project-track .track-activity { display: block; grid-column: 1 / -1; grid-row: 2; max-width: 100%; }
-  .project-track .track-events { grid-column: 1 / 3; grid-row: 3; text-align: left; padding-left: 4px; }
-  .project-track .track-events::before,
-  .project-track .track-seen::before { content: none; }
-  .project-track .track-seen { grid-column: 3; grid-row: 3; text-align: right; }
-  .all-clear { position: static; display: inline-flex; margin-top: 4px; }
-  .projects-fox { max-width: 220px; margin-top: 18px; }
-  .projects-fox .fox { width: 120px; }
-  .auth-note {
-    position: static;
-    display: inline-flex;
-    margin: 4px 0 0;
-    transform: rotate(-5deg);
-  }
-  .auth-fox { flex-direction: column; align-items: center; }
-  .copy-note { display: none; }
-  .dsn-row { flex-direction: column; align-items: stretch; gap: 8px; }
-  .dsn-copy-btn { width: 100%; }
-  .settings-actions { flex-direction: column; gap: 16px; }
-  .settings-actions form,
-  .settings-actions form button,
-  .settings-actions form:first-child button { width: 100%; min-width: 0; justify-content: center; }
-  .delete-form { flex-direction: column; align-items: stretch; }
-  .delete-form button.destructive { width: 100%; }
+  .project-list .tracklist-head { display: none; }
+  .project-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main main" "events seen" "act act"; gap: 6px 14px; padding: 14px 4px; }
+  .project-row .track-main { grid-area: main; }
+  .project-row .track-events { grid-area: events; text-align: left; }
+  .project-row .track-seen { grid-area: seen; }
+  .project-row .track-activity { grid-area: act; }
+  .project-row .track-events .cell-label { position: static; width: auto; height: auto; clip-path: none; color: var(--muted); }
+  .project-row .figure { font-size: var(--fs-2); }
+  .settings-actions { flex-direction: column; }
+  .delete-form button { width: 100%; }
 }

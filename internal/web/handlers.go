@@ -38,6 +38,13 @@ type ProjectView struct {
 	Bars            [store.ActivityDays]string // 14 height classes ("h0", "h5", ..., "h100")
 	ActivityTotal   int                        // sum of events across the 14-day window
 	ActivitySummary string                     // accessible summary for barcode aria-label
+	ActivityFrom    string                     // first day of the window, e.g. "Oct 25"
+}
+
+// activityFrom labels the oldest day of the activity window ("Oct 25"), so the
+// barcode axis reads as dates instead of day indices.
+func activityFrom(now time.Time) string {
+	return now.UTC().AddDate(0, 0, -(store.ActivityDays - 1)).Format("Jan 2")
 }
 
 func buildActivityFields(counts []int) (act [store.ActivityDays]int, bars [store.ActivityDays]string, total int, summary string) {
@@ -100,6 +107,12 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/setup", http.StatusSeeOther)
 		return
 	}
+	if c, err := r.Cookie(sessionCookie); err == nil {
+		if _, err := s.Store.SessionByToken(r.Context(), c.Value); err == nil {
+			http.Redirect(w, r, safeNext(r.URL.Query().Get("next")), http.StatusSeeOther)
+			return
+		}
+	}
 	s.render(w, r, http.StatusOK, "login", "Log in", map[string]string{"Next": r.URL.Query().Get("next")})
 }
 
@@ -108,7 +121,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	next := r.PostFormValue("next")
 	u, err := s.Store.Authenticate(r.Context(), email, r.PostFormValue("password"))
 	if errors.Is(err, store.ErrBadCredentials) {
-		s.render(w, r, http.StatusUnauthorized, "login", "Log in", map[string]string{"Error": err.Error(), "Email": email, "Next": next})
+		s.render(w, r, http.StatusUnauthorized, "login", "Log in", map[string]string{"Error": "That email and password don't match. Check both and try again.", "Email": email, "Next": next})
 		return
 	} else if err != nil {
 		s.serverError(w, r, err)
@@ -174,6 +187,7 @@ func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
 			Bars:            bars,
 			ActivityTotal:   total,
 			ActivitySummary: summary,
+			ActivityFrom:    activityFrom(s.now()),
 		}
 	}
 	s.render(w, r, http.StatusOK, "projects", "Projects", views)
@@ -208,7 +222,9 @@ func (s *Server) projectCreate(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/projects/"+p.Slug+"/settings?flash=created", http.StatusSeeOther)
+	// Land on the issue list: its first-run state has the DSN, a test-event
+	// button, and waits for the first event to arrive.
+	http.Redirect(w, r, "/projects/"+p.Slug+"?flash=created", http.StatusSeeOther)
 }
 
 func (s *Server) loadProject(w http.ResponseWriter, r *http.Request) (*store.Project, bool) {
@@ -249,6 +265,12 @@ func (s *Server) projectTestEvent(w http.ResponseWriter, r *http.Request) {
 func (s *Server) projectRotateKey(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.loadProject(w, r)
 	if !ok {
+		return
+	}
+	// The checkbox is required in the form; enforcing it here keeps the
+	// safeguard when JavaScript and client-side validation are unavailable.
+	if r.PostFormValue("confirm") != "rotate" {
+		http.Redirect(w, r, "/projects/"+p.Slug+"/settings?flash=rotate-confirm", http.StatusSeeOther)
 		return
 	}
 	if err := s.Store.RotateProjectKey(r.Context(), p.ID); err != nil {
@@ -297,10 +319,16 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 	sort := q.Get("sort")
+	level := q.Get("level")
+	levels := levelsAtLeast(level)
+	if levels == nil {
+		level = ""
+	}
 	offset := (page - 1) * issuesPerPage
 	issues, err := s.Store.ListIssues(r.Context(), p.ID, store.IssueFilter{
 		Status: status,
 		Query:  q.Get("q"),
+		Levels: levels,
 		Sort:   sort,
 		Limit:  issuesPerPage + 1, // one extra to know if there's a next page
 		Offset: offset,
@@ -323,12 +351,18 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	counts, err := s.Store.IssueStatusCounts(r.Context(), p.ID)
+	totals, err := s.Store.IssueStatusCounts(r.Context(), p.ID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	p.UnresolvedCount = counts.Unresolved
+	p.UnresolvedCount = totals.Unresolved
+	// Tab counts follow the search and level filter so they match the list.
+	counts, err := s.Store.FilteredStatusCounts(r.Context(), p.ID, store.IssueFilter{Query: q.Get("q"), Levels: levels})
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 
 	issueViews := make([]IssueView, len(issues))
 	for i, iss := range issues {
@@ -356,22 +390,66 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 		if sort != "" {
 			v.Set("sort", sort)
 		}
+		if level != "" {
+			v.Set("level", level)
+		}
 		v.Set("page", strconv.Itoa(n))
 		return "/projects/" + p.Slug + "?" + v.Encode()
 	}
+	tabURLs := map[string]string{}
+	for _, st := range []string{"unresolved", "resolved", "ignored", "all"} {
+		v := url.Values{"status": {st}}
+		for _, k := range []string{"q", "sort", "level"} {
+			if q.Get(k) != "" && (k != "level" || level != "") {
+				v.Set(k, q.Get(k))
+			}
+		}
+		tabURLs[st] = "/projects/" + p.Slug + "?" + v.Encode()
+	}
+	clear := url.Values{"status": {statusParam}}
+	if sort != "" {
+		clear.Set("sort", sort)
+	}
+	if level != "" {
+		clear.Set("level", level)
+	}
 	data := map[string]any{
-		"Project":    p,
-		"Issues":     issueViews,
-		"Status":     statusParam,
-		"Query":      q.Get("q"),
-		"Sort":       sort,
-		"Page":       page,
-		"Counts":     counts,
-		"DayLabels":  dayLabels(),
-		"TotalShown": len(issueViews),
+		"Project":      p,
+		"TabURL":       tabURLs,
+		"ClearURL":     "/projects/" + p.Slug + "?" + clear.Encode(),
+		"Issues":       issueViews,
+		"Status":       statusParam,
+		"Query":        q.Get("q"),
+		"Sort":         sort,
+		"Level":        level,
+		"Page":         page,
+		"Counts":       counts,
+		"Total":        totals.All,
+		"ListURL":      r.URL.RequestURI(),
+		"DayLabels":    dayLabels(),
+		"ActivityFrom": activityFrom(s.now()),
+		"DSN":          s.DSN(p),
+		"TotalShown":   len(issueViews),
 	}
 	if hasNext {
 		data["NextURL"] = pageURL(page + 1)
+	}
+	switch q.Get("flash") {
+	case "status":
+		// Offer undo only while the issue is still in the state we moved it
+		// to, so a reloaded or shared URL can't flip it back unexpectedly.
+		id, _ := strconv.ParseInt(q.Get("issue"), 10, 64)
+		undo := store.IssueStatus(q.Get("undo"))
+		if changed, err := s.Store.IssueByID(r.Context(), id); err == nil && changed.ProjectID == p.ID &&
+			string(changed.Status) == q.Get("to") && undo.Valid() && undo != changed.Status {
+			data["Changed"] = changed
+			data["Undo"] = string(undo)
+		}
+	case "bulk":
+		if n, _ := strconv.Atoi(q.Get("n")); n > 0 {
+			data["BulkN"] = n
+			data["BulkTo"] = q.Get("to")
+		}
 	}
 	if page > 1 {
 		data["PrevURL"] = pageURL(page - 1)
@@ -387,7 +465,7 @@ func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request) (*store.Issue
 	}
 	issue, err := s.Store.IssueByID(r.Context(), id)
 	if errors.Is(err, store.ErrNotFound) {
-		s.notFound(w, r)
+		s.render(w, r, http.StatusNotFound, "error", "Issue not found", "There's no issue with that number. It may have been deleted, or the link came from another Burrow server.")
 		return nil, nil, false
 	} else if err != nil {
 		s.serverError(w, r, err)
@@ -442,6 +520,7 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 		"ActivityTotal":   actTotal,
 		"ActivitySummary": actSummary,
 		"DayLabels":       dayLabels(),
+		"ActivityFrom":    activityFrom(s.now()),
 	}
 	if se != nil {
 		older, newer, err := s.Store.AdjacentEvents(r.Context(), se)
@@ -452,7 +531,7 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 		data["Event"] = se.Event
 		data["Older"], data["Newer"] = older, newer
 	}
-	s.render(w, r, http.StatusOK, "issue", issue.Title, data)
+	s.render(w, r, http.StatusOK, "issue", shortTitle(issue.Title, 70), data)
 }
 
 func (s *Server) issueSetStatus(w http.ResponseWriter, r *http.Request) {
@@ -465,11 +544,30 @@ func (s *Server) issueSetStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid status", http.StatusBadRequest)
 		return
 	}
+	prev := issue.Status
 	if err := s.Store.SetIssueStatus(r.Context(), issue.ID, st); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/issues/"+strconv.FormatInt(issue.ID, 10), http.StatusSeeOther)
+	issueURL := "/issues/" + strconv.FormatInt(issue.ID, 10)
+	switch {
+	case prev == st:
+		http.Redirect(w, r, issueURL, http.StatusSeeOther)
+	case r.PostFormValue("undo") == "1":
+		http.Redirect(w, r, issueURL+"?flash=restored", http.StatusSeeOther)
+	case st == store.StatusUnresolved:
+		http.Redirect(w, r, issueURL+"?flash=reopened", http.StatusSeeOther)
+	default:
+		// Resolving or ignoring ends the visit: back to the remaining
+		// unresolved issues, with a one-step undo at the top.
+		p, err := s.Store.ProjectByID(r.Context(), issue.ProjectID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		v := url.Values{"flash": {"status"}, "issue": {strconv.FormatInt(issue.ID, 10)}, "to": {string(st)}, "undo": {string(prev)}}
+		http.Redirect(w, r, "/projects/"+p.Slug+"?"+v.Encode(), http.StatusSeeOther)
+	}
 }
 
 func (s *Server) issueDelete(w http.ResponseWriter, r *http.Request) {
@@ -477,11 +575,86 @@ func (s *Server) issueDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if r.PostFormValue("confirm") != "delete" {
+		http.Redirect(w, r, "/issues/"+strconv.FormatInt(issue.ID, 10)+"?flash=delete-confirm", http.StatusSeeOther)
+		return
+	}
 	if err := s.Store.DeleteIssue(r.Context(), issue.ID); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/projects/"+p.Slug, http.StatusSeeOther)
+}
+
+// shortTitle keeps browser tabs readable for long exception messages.
+func shortTitle(t string, max int) string {
+	r := []rune(t)
+	if len(r) <= max {
+		return t
+	}
+	return strings.TrimSpace(string(r[:max-1])) + "…"
+}
+
+// levelsAtLeast maps the issue list's level filter to the levels it keeps.
+func levelsAtLeast(min string) []string {
+	switch min {
+	case "error":
+		return []string{"fatal", "error"}
+	case "warning":
+		return []string{"fatal", "error", "warning"}
+	}
+	return nil
+}
+
+// issueBulkStatus changes the status of the issues ticked on the list page.
+// It is a plain form post, so bulk triage works without JavaScript.
+func (s *Server) issueBulkStatus(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.loadProject(w, r)
+	if !ok {
+		return
+	}
+	st := store.IssueStatus(r.PostFormValue("status"))
+	if !st.Valid() {
+		http.Error(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+	n := 0
+	for _, raw := range r.PostForm["id"] {
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			continue
+		}
+		issue, err := s.Store.IssueByID(r.Context(), id)
+		if errors.Is(err, store.ErrNotFound) || (err == nil && issue.ProjectID != p.ID) {
+			continue
+		} else if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		if err := s.Store.SetIssueStatus(r.Context(), id, st); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		n++
+	}
+	base := "/projects/" + p.Slug
+	back, err := url.Parse(safeNext(r.PostFormValue("back")))
+	if err != nil || back.Path != base {
+		back = &url.URL{Path: base}
+	}
+	v := back.Query()
+	for _, k := range []string{"flash", "n", "to", "issue", "undo", "page"} {
+		v.Del(k)
+	}
+	if n == 0 {
+		v.Set("flash", "bulk-none")
+	} else {
+		v.Set("flash", "bulk")
+		v.Set("n", strconv.Itoa(n))
+		v.Set("to", string(st))
+	}
+	back.RawQuery = v.Encode()
+	http.Redirect(w, r, back.String(), http.StatusSeeOther)
 }
 
 // sampleEvent is what "Send test event" ingests: realistic enough to show

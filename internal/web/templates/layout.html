@@ -5,24 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
 <title>{{.Title}} · Burrow</title>
-<link rel="stylesheet" href="/static/style.css">
-<link rel="stylesheet" href="/static/pages-issues.css">
-<link rel="stylesheet" href="/static/pages-admin.css">
+<link rel="stylesheet" href="/static/style.css?v={{.Version}}">
+<link rel="stylesheet" href="/static/pages-issues.css?v={{.Version}}">
+<link rel="stylesheet" href="/static/pages-admin.css?v={{.Version}}">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<script src="/static/app.js" defer></script>
+<script src="/static/app.js?v={{.Version}}" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="topbar">
-  <a class="brand" href="/" aria-label="Burrow projects">{{template "fox-mark" .}}<span class="brand-wordmark">BURROW</span></a>
-  <span class="brand-caption">Self-hosted<br>Error tracker</span>
-  {{if .Session}}
-  <div class="project-crumb">
-    {{with .Nav.Project}}<a href="/projects/{{.Slug}}">{{.Name}}</a>{{else}}<a href="/">Projects</a>{{end}}
-    <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
-  </div>
-  {{end}}
-  <div class="signal-strip">{{template "signal-strip" .}}</div>
+  <a class="brand" href="/" aria-label="Burrow projects">{{template "fox-mark" .}}<span class="brand-wordmark">burrow</span></a>
+  {{if .Session}}{{with .Nav.Project}}
+  <span class="topbar-sep" aria-hidden="true">/</span>
+  <a class="project-crumb" href="/projects/{{.Slug}}">{{.Name}}</a>
+  {{end}}{{end}}
 </header>
 <div class="app-shell {{if not .Session}}auth-shell{{end}}">
 {{if .Session}}
@@ -40,18 +36,19 @@
       </a>
       {{with .Nav.Project}}
       <a class="rail-item {{if eq $.Nav.Page "project_settings"}}active{{end}}" {{if eq $.Nav.Page "project_settings"}}aria-current="page"{{end}} href="/projects/{{.Slug}}/settings">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3 1-2h4l1 2 3 2 2 .1 2 3-1 2v4l1 2-2 3-2 .1-3 2-1 2h-4l-1-2-3-2-2-.1-2-3 1-2v-4l-1-2 2-3L6 5Z" transform="translate(1 1) scale(.9)"/><circle cx="12" cy="12" r="3"/></svg>
+        {{template "icon-settings" .}}
         <span>Settings</span>
       </a>
       {{end}}
     </nav>
-    <div class="rail-mascot">{{template "fox-peek" .}}<span class="note" aria-hidden="true">Dig in.<br>Keep watch.</span></div>
     <div class="rail-account">
-      <span class="muted" title="{{.Session.User.Email}}">{{.Session.User.Email}}</span>
+      <button type="button" class="link js-only rail-shortcuts" data-open-shortcuts aria-keyshortcuts="?">Keyboard shortcuts</button>
+      <span class="rail-email" title="{{.Session.User.Email}}">{{.Session.User.Email}}</span>
       <form method="post" action="/logout">
         <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
         <button class="link">Log out</button>
       </form>
+      <span class="rail-version">Burrow {{.Version}}</span>
     </div>
   </aside>
 {{end}}
@@ -59,10 +56,28 @@
 {{template "content" .}}
 </main>
 </div>
-<footer class="app-footer">
-  <span>BURROW {{.Version}}</span>
-  <span class="footer-barcode" aria-hidden="true"></span>
-  <span>Open-source error tracking</span>
-</footer>
+{{if .Session}}
+<dialog class="shortcuts" id="shortcuts" aria-labelledby="shortcuts-title">
+  <h2 id="shortcuts-title">Keyboard shortcuts</h2>
+  <h3>Issue list</h3>
+  <dl>
+    <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next or previous issue</dd>
+    <dt><kbd>Enter</kbd></dt><dd>Open the focused issue</dd>
+    <dt><kbd>x</kbd></dt><dd>Tick the focused issue</dd>
+    <dt><kbd>r</kbd> <kbd>i</kbd></dt><dd>Resolve or ignore ticked issues</dd>
+    <dt><kbd>/</kbd></dt><dd>Search</dd>
+  </dl>
+  <h3>Issue page</h3>
+  <dl>
+    <dt><kbd>r</kbd> <kbd>i</kbd></dt><dd>Resolve or ignore this issue</dd>
+    <dt><kbd>u</kbd></dt><dd>Back to the issue list</dd>
+  </dl>
+  <h3>Anywhere</h3>
+  <dl>
+    <dt><kbd>?</kbd></dt><dd>Show this list</dd>
+  </dl>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
+{{end}}
 </body>
 </html>

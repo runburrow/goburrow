@@ -143,7 +143,7 @@ func TestEndToEnd(t *testing.T) {
 	if code, _ := h.post("/projects/new", url.Values{"name": {"Web App"}, "platform": {"node"}, "csrf": {"wrong"}}); code != 403 {
 		t.Errorf("bad CSRF accepted: %d", code)
 	}
-	if code, body := h.post("/projects/new", url.Values{"name": {"Web App"}, "platform": {"node"}}); code != 200 || !strings.Contains(body, "/1") {
+	if code, body := h.post("/projects/new", url.Values{"name": {"Web App"}, "platform": {"node"}}); code != 200 || !strings.Contains(body, "/1") || !strings.Contains(body, "data-wait-first-event") {
 		t.Fatalf("create project: %d", code)
 	}
 	p, err := h.st.ProjectBySlug(context.Background(), "web-app")
@@ -227,10 +227,10 @@ func TestEndToEnd(t *testing.T) {
 	if i, _ := h.st.IssueByID(context.Background(), issue.ID); i.Status != store.StatusUnresolved || !i.Regressed {
 		t.Errorf("regression should reopen and flag Regressed, got %s regressed=%v", i.Status, i.Regressed)
 	}
-	if _, body := h.get("/projects/web-app"); !strings.Contains(body, "REGRESSION") {
+	if _, body := h.get("/projects/web-app"); !strings.Contains(body, `pill regression">Regression<`) {
 		t.Errorf("issues list should show REGRESSION pill for a regressed issue")
 	}
-	if _, body := h.get(fmt.Sprintf("/issues/%d", issue.ID)); !strings.Contains(body, "REGRESSION") {
+	if _, body := h.get(fmt.Sprintf("/issues/%d", issue.ID)); !strings.Contains(body, `pill regression">Regression<`) {
 		t.Errorf("issue page should show REGRESSION pill for a regressed issue")
 	}
 	// A manual status change clears the flag.
@@ -239,7 +239,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Errorf("Regressed should clear on manual status change")
 	}
 	h.post(fmt.Sprintf("/issues/%d/status", issue.ID), url.Values{"status": {"unresolved"}})
-	if _, body := h.get(fmt.Sprintf("/issues/%d", issue.ID)); strings.Contains(body, "REGRESSION") {
+	if _, body := h.get(fmt.Sprintf("/issues/%d", issue.ID)); strings.Contains(body, `pill regression">Regression<`) {
 		t.Errorf("REGRESSION pill should be gone after status change")
 	}
 
@@ -254,14 +254,72 @@ func TestEndToEnd(t *testing.T) {
 		t.Errorf("test event page: %d (handled=false should render as unhandled)", code)
 	}
 
-	// Rotating the key invalidates the old DSN.
+	// Rotating the key needs the confirmation box, even without JS.
 	h.post("/projects/web-app/rotate-key", url.Values{})
+	if code, _ := h.ingest("/api/1/store/?sentry_key="+p.PublicKey, []byte(`{}`), nil); code == 401 {
+		t.Errorf("rotate-key without confirm should not rotate")
+	}
+	// Rotating the key invalidates the old DSN.
+	h.post("/projects/web-app/rotate-key", url.Values{"confirm": {"rotate"}})
 	if code, _ := h.ingest("/api/1/store/?sentry_key="+p.PublicKey, []byte(`{}`), nil); code != 401 {
 		t.Errorf("old key still works after rotation: %d", code)
 	}
 
-	// Logout ends the session.
+	// Resolving returns to the list with a one-step undo; undo restores
+	// without offering another undo, and a stale undo link offers nothing.
+	if code, body := h.post(fmt.Sprintf("/issues/%d/status", issue.ID), url.Values{"status": {"resolved"}}); code != 200 || !strings.Contains(body, "Undo") || !strings.Contains(body, `name="undo" value="1"`) {
+		t.Errorf("resolve should land on the issue list with an undo: %d", code)
+	}
+	if code, body := h.post(fmt.Sprintf("/issues/%d/status", issue.ID), url.Values{"status": {"unresolved"}, "undo": {"1"}}); code != 200 || !strings.Contains(body, "Restored.") || strings.Contains(body, "Undo") {
+		t.Errorf("undo should restore without another undo: %d", code)
+	}
+	if _, body := h.get(fmt.Sprintf("/projects/web-app?flash=status&issue=%d&to=resolved&undo=unresolved", issue.ID)); strings.Contains(body, "Undo") {
+		t.Errorf("stale undo link should not offer undo once the status has changed")
+	}
+
+	// Bulk status change from the list, scoped to the project.
+	h.post("/projects/web-app/issues/status", url.Values{"status": {"ignored"}, "id": {fmt.Sprint(issue.ID)}, "back": {"/projects/web-app?status=unresolved"}})
+	if i, _ := h.st.IssueByID(context.Background(), issue.ID); i.Status != store.StatusIgnored {
+		t.Errorf("bulk ignore: status = %s", i.Status)
+	}
+	h.post("/projects/web-app/issues/status", url.Values{"status": {"unresolved"}, "id": {fmt.Sprint(issue.ID)}})
+
+	// Level filter and search-aware tab counts.
+	if _, body := h.get("/projects/web-app?level=error"); !strings.Contains(body, "TypeError") {
+		t.Errorf("error-level filter should keep error issues")
+	}
+	if _, body := h.get("/projects/web-app?q=no-such-thing-at-all"); !strings.Contains(body, `class="tab-count">0<`) {
+		t.Errorf("tab counts should follow the search")
+	}
+
+	// Deleting an issue needs the confirmation box, even without JS.
+	h.post(fmt.Sprintf("/issues/%d/delete", issue.ID), url.Values{})
+	if _, err := h.st.IssueByID(context.Background(), issue.ID); err != nil {
+		t.Errorf("delete without confirm should keep the issue: %v", err)
+	}
+	h.post(fmt.Sprintf("/issues/%d/delete", issue.ID), url.Values{"confirm": {"delete"}})
+	if _, err := h.st.IssueByID(context.Background(), issue.ID); err == nil {
+		t.Errorf("confirmed delete should remove the issue")
+	}
+
+	// A missing issue says so specifically.
+	if code, body := h.get("/issues/987654"); code != 404 || !strings.Contains(body, "no issue with that number") {
+		t.Errorf("missing issue: %d, want issue-specific 404", code)
+	}
+
+	// Unknown routes get the designed 404; /login while signed in goes home.
+	if code, body := h.get("/no-such-page"); code != 404 || !strings.Contains(body, "Back to projects") || !strings.Contains(body, "Log out") {
+		t.Errorf("unknown route: %d, want designed 404 that keeps the signed-in navigation", code)
+	}
+	if _, body := h.get("/login"); strings.Contains(body, `action="/login"`) {
+		t.Errorf("/login while signed in should redirect away from the form")
+	}
+
+	// Logout ends the session; a wrong password gets plain, friendly copy.
 	h.post("/logout", url.Values{})
+	if code, body := h.post("/login", url.Values{"email": {"nobody@example.com"}, "password": {"wrong-password-123"}}); code != 401 || !strings.Contains(body, "don&#39;t match") {
+		t.Errorf("bad login: %d, want friendly error", code)
+	}
 	if code, body := h.get("/"); code != 200 || !strings.Contains(body, "Log in") {
 		t.Errorf("expected login page after logout")
 	}
@@ -383,7 +441,7 @@ func TestNightTapeDataAndFuncs(t *testing.T) {
 	}
 
 	// Render projects list and issue detail
-	if code, body := h.get("/"); code != 200 || !strings.Contains(body, "50 unresolved") {
+	if code, body := h.get("/"); code != 200 || !strings.Contains(body, `count-hot">50<`) {
 		t.Fatalf("projects list failed: %d\n%s", code, body)
 	}
 	if code, body := h.get(fmt.Sprintf("/issues/%d", firstIssueID+51)); code != 200 || !strings.Contains(body, "h100") {

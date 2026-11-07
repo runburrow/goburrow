@@ -1,99 +1,60 @@
 {{define "content"}}
 {{$i := .Data.Issue}}{{$p := .Data.Project}}{{$e := .Data.Event}}{{$csrf := .Session.CSRF}}
-<nav class="crumbs issue-crumbs" aria-label="Breadcrumb"><a href="/projects/{{$p.Slug}}">← {{$p.Name}}</a> <span aria-hidden="true">/</span> <span aria-current="page">Issue #{{$i.ID}}</span></nav>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="/projects/{{$p.Slug}}" data-shortcut="u" aria-keyshortcuts="u">Issues</a> <span aria-hidden="true">/</span> <span aria-current="page">Issue {{$i.ID}}</span></nav>
 
-<header class="issue-head night-issue-head">
+{{if eq .Flash "restored"}}<p class="alert ok" role="status">Restored. This issue is {{$i.Status}} again.</p>{{end}}
+{{if eq .Flash "reopened"}}<p class="alert ok" role="status">Reopened. This issue is back in the unresolved list.</p>{{end}}
+{{if eq .Flash "delete-confirm"}}<p class="alert error" role="alert">Tick the confirmation box to delete this issue.</p>{{end}}
+
+<header class="issue-head">
   <div class="issue-heading">
-    <div class="issue-heading-top">
+    <p class="issue-badges">
       <span class="level-label level-{{$i.Level}}">{{$i.Level}}</span>
-      <span class="pill status-{{$i.Status}}">{{if eq $i.Status "unresolved"}}OPEN{{else if eq $i.Status "resolved"}}RESOLVED{{else}}IGNORED{{end}}</span>
-      {{if $i.Regressed}}<span class="pill regression">REGRESSION</span>{{end}}
-    </div>
+      {{if $i.Regressed}}<span class="pill regression">Regression</span>{{end}}
+      {{if ne (printf "%s" $i.Status) "unresolved"}}<span class="pill status-{{$i.Status}}">{{$i.Status}}</span>{{end}}
+    </p>
     <h1>{{$i.Title}}</h1>
-    <p class="mono muted issue-culprit">{{if $i.Culprit}}{{$i.Culprit}}{{else}}No culprit recorded{{end}}</p>
-    <div class="issue-tape-summary">
-      <div class="issue-mini-activity">
-        <div class="barcode" role="img" aria-label="14-day activity: {{.Data.ActivitySummary}}">
-          <div class="bars barcode-bars" aria-hidden="true">{{range $idx, $count := .Data.Activity}}<span class="bar {{index $.Data.Bars $idx}}" title="{{$count}} {{plural $count "event" "events"}}"></span>{{end}}</div>
-          <div class="barcode-days" aria-hidden="true">{{range .Data.DayLabels}}<span>{{.}}</span>{{end}}</div>
-        </div>
-      </div>
-      <dl class="issue-head-stats">
-        <div><dt>{{comma $i.TimesSeen}}</dt><dd>{{plural $i.TimesSeen "event" "events"}}</dd></div>
-        <div><dt><time datetime="{{isodate $i.FirstSeen}}" title="{{datetime $i.FirstSeen}}">{{ago $i.FirstSeen}}</time></dt><dd>first seen</dd></div>
-        <div><dt><time datetime="{{isodate $i.LastSeen}}" title="{{datetime $i.LastSeen}}">{{ago $i.LastSeen}}</time></dt><dd>last seen</dd></div>
-      </dl>
-    </div>
+    <p class="issue-culprit">{{if $i.Culprit}}{{$i.Culprit}}{{else}}No culprit recorded{{end}}</p>
+    <p class="issue-facts"><strong>{{comma $i.TimesSeen}}</strong> {{plural $i.TimesSeen "event" "events"}} <span aria-hidden="true">·</span> first seen <time datetime="{{isodate $i.FirstSeen}}" title="{{datetime $i.FirstSeen}}">{{ago $i.FirstSeen}}</time> <span aria-hidden="true">·</span> last seen <time datetime="{{isodate $i.LastSeen}}" title="{{datetime $i.LastSeen}}">{{ago $i.LastSeen}}</time>{{with $e}}{{if or .Environment .Release}} <span aria-hidden="true">·</span> <span class="issue-env">{{.Environment}}{{if and .Environment .Release}} {{end}}{{with .Release}}<span class="mono">{{.}}</span>{{end}}</span>{{end}}{{end}}</p>
   </div>
-  <div class="issue-actions" aria-label="Issue actions">
+  <div class="issue-actions" role="group" aria-label="Issue actions">
     {{range $st := (list "resolved" "ignored" "unresolved")}}{{if ne (printf "%s" $i.Status) $st}}
     <form method="post" action="/issues/{{$i.ID}}/status" class="inline">
       <input type="hidden" name="csrf" value="{{$csrf}}">
       <input type="hidden" name="status" value="{{$st}}">
-      <button type="submit" {{if eq $st "resolved"}}class="primary"{{end}}>
+      <button type="submit" {{if eq $st "resolved"}}class="primary" data-shortcut="r" aria-keyshortcuts="r"{{else if eq $st "ignored"}}data-shortcut="i" aria-keyshortcuts="i"{{end}}>
         {{if eq $st "resolved"}}<svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="m4.5 10.5 3.5 3.5 7.5-7.5"/></svg><span>Resolve</span>{{else if eq $st "ignored"}}<svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M5.4 14.6 14.6 5.4"/></svg><span>Ignore</span>{{else}}<span>Reopen</span>{{end}}
       </button>
     </form>
     {{end}}{{end}}
-    <form method="post" action="/issues/{{$i.ID}}/delete" class="inline" data-confirm="Delete this issue and all its events?">
-      <input type="hidden" name="csrf" value="{{$csrf}}">
-      <button type="submit" class="destructive"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m-6 0v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6"/></svg><span>Delete</span></button>
-    </form>
   </div>
 </header>
 
-<div class="issue-layout night-issue-layout">
+<div class="issue-layout">
 <div class="issue-body">
 
 {{if not $e}}
-  <section class="panel issue-retention-empty">
-    <span class="note tape-note" aria-hidden="true">End of tape</span>
-    <h2>Events have aged out.</h2>
-    <p class="muted">This issue’s events are past retention. New occurrences will show up here.</p>
+  <section class="panel">
+    <h2>No events retained</h2>
+    <p class="muted">This issue's events are older than the retention window and were deleted. The next occurrence will show up here.</p>
   </section>
 {{else}}
 
-<section class="event-nav issue-event-nav" aria-label="Selected event">
-  <div class="event-identity">
-    <span class="section-kicker">Selected event</span>
-    <code>{{$e.EventID}}</code>
-    <time class="muted small" datetime="{{isodate $e.Timestamp}}" title="{{datetime $e.Timestamp}}">{{datetime $e.Timestamp}} ({{ago $e.Timestamp}})</time>
-  </div>
-  <div class="event-controls">
-    {{if .Data.Newer}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Newer}}">← Newer</a>{{else}}<span class="button small disabled" aria-disabled="true">← Newer</span>{{end}}
-    {{if .Data.Older}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Older}}">Older →</a>{{else}}<span class="button small disabled" aria-disabled="true">Older →</span>{{end}}
-    <a class="button small" href="/issues/{{$i.ID}}">Latest</a>
-  </div>
-</section>
-
-<nav class="tabs issue-section-tabs" aria-label="Event sections">
-  {{if $e.Exceptions}}<a class="tab active" aria-current="page" href="#stack-trace">Stack trace</a>{{end}}
-  {{if $e.Message}}{{if or (not $e.Exceptions) (ne $e.Message (index $e.Exceptions 0).Value)}}<a class="tab {{if not $e.Exceptions}}active{{end}}" {{if not $e.Exceptions}}aria-current="page"{{end}} href="#message">Message</a>{{end}}{{end}}
-  {{if $e.Breadcrumbs}}<a class="tab" href="#breadcrumbs">Breadcrumbs</a>{{end}}
-  {{if $e.Request}}<a class="tab" href="#request">Request</a>{{end}}
-  {{if $e.Contexts}}<a class="tab" href="#contexts">Contexts</a>{{end}}
-  {{if $e.Extra}}<a class="tab" href="#additional-data">Additional data</a>{{end}}
-  <a class="tab" href="#raw-json">Raw JSON</a>
-</nav>
-
 {{if $e.Message}}{{if or (not $e.Exceptions) (ne $e.Message (index $e.Exceptions 0).Value)}}
-<section class="panel issue-message" id="message">
-  <div class="panel-head"><h2>Message</h2><span class="section-kicker">Event detail</span></div>
+<section class="panel" id="message">
+  <h2>Message</h2>
   <pre class="message">{{$e.Message}}</pre>
 </section>
 {{end}}{{end}}
 
 {{range $exIdx, $ex := reverseExc $e.Exceptions}}
-<section class="panel exception issue-exception" id="stack-trace{{if $exIdx}}-{{$exIdx}}{{end}}">
-  <div class="panel-head exception-head">
-    <div>
-      <span class="note tape-note" aria-hidden="true">Read the groove</span>
-      {{if or $ex.Type $ex.Value}}<h2 class="exc-title">{{if $ex.Type}}{{$ex.Type}}{{else}}Error{{end}}</h2>{{else}}<h2>Stack trace</h2>{{end}}
-    </div>
-    {{if hasFrames $ex}}<span class="section-kicker">{{len $ex.Stacktrace.Frames}} {{plural (len $ex.Stacktrace.Frames) "frame" "frames"}}</span>{{end}}
+<section class="panel exception" id="stack-trace{{if $exIdx}}-{{$exIdx}}{{end}}">
+  <div class="panel-head">
+    <h2 class="exc-title">{{if $ex.Type}}{{$ex.Type}}{{else if $ex.Value}}Error{{else}}Stack trace{{end}}</h2>
+    {{if hasFrames $ex}}<span class="panel-meta">{{len $ex.Stacktrace.Frames}} {{plural (len $ex.Stacktrace.Frames) "frame" "frames"}}</span>{{end}}
   </div>
   {{if $ex.Value}}<pre class="exc-value">{{$ex.Value}}</pre>{{end}}
-  {{with $ex.Mechanism}}<p class="small muted exception-mechanism">mechanism: <span class="mono">{{.Type}}</span>{{if .Handled}} <span aria-hidden="true">/</span> {{if deref .Handled}}handled{{else}}<strong class="unhandled">unhandled</strong>{{end}}{{end}}</p>{{end}}
+  {{with $ex.Mechanism}}<p class="exception-mechanism muted">Mechanism <span class="mono">{{.Type}}</span>{{if .Handled}}, {{if deref .Handled}}handled{{else}}<strong class="unhandled">unhandled</strong>{{end}}{{end}}</p>{{end}}
 
   {{if hasFrames $ex}}
   {{$hasInApp := anyInApp $ex}}
@@ -101,12 +62,11 @@
     {{range $idx, $f := reverseFr $ex.Stacktrace}}
     <details class="frame {{if $f.IsInApp}}in-app{{end}}" {{if or $f.IsInApp (and (not $hasInApp) (eq $idx 0))}}open{{end}}>
       <summary>
-        <span class="track-number" aria-hidden="true">{{trackNumber (add $idx 1)}}</span>
         <span class="frame-location">
-          <span class="frame-function mono">{{if $f.Function}}{{$f.Function}}{{else}}anonymous{{end}}</span>
-          <span class="frame-file mono">{{if $f.Module}}{{$f.Module}}{{else if $f.Filename}}{{$f.Filename}}{{else if $f.AbsPath}}{{$f.AbsPath}}{{else}}Unknown location{{end}}{{if $f.Lineno}}:{{$f.Lineno}}{{if $f.Colno}}:{{$f.Colno}}{{end}}{{end}}</span>
+          <span class="frame-function">{{if $f.Function}}{{$f.Function}}{{else}}anonymous{{end}}</span>
+          <span class="frame-file">{{if $f.Module}}{{$f.Module}}{{else if $f.Filename}}{{$f.Filename}}{{else if $f.AbsPath}}{{$f.AbsPath}}{{else}}Unknown location{{end}}{{if $f.Lineno}}:{{$f.Lineno}}{{if $f.Colno}}:{{$f.Colno}}{{end}}{{end}}</span>
         </span>
-        <span class="frame-scope">{{if $f.IsInApp}}in app{{else}}external{{end}}</span>
+        {{if $f.IsInApp}}<span class="frame-scope">in app</span>{{end}}
       </summary>
       {{if frameHasContext $f}}
       <div class="code-scroll" tabindex="0" role="region" aria-label="Source context for {{if $f.Function}}{{$f.Function}}{{else}}frame {{add $idx 1}}{{end}}">
@@ -117,7 +77,7 @@
         </ol>
       </div>
       {{else}}
-      <p class="small muted nocontext">No source context.{{if $f.AbsPath}} <span class="mono">{{$f.AbsPath}}</span>{{end}}</p>
+      <p class="nocontext muted">No source context.{{if $f.AbsPath}} <span class="mono">{{$f.AbsPath}}</span>{{end}}</p>
       {{end}}
       {{if $f.Vars}}
       <div class="frame-vars">
@@ -131,23 +91,32 @@
     </details>
     {{end}}
   </div>
-  {{else}}<p class="muted small">No stack trace was included with this exception.</p>{{end}}
+  {{else}}<p class="muted">No stack trace was included with this exception.</p>{{end}}
 </section>
 {{end}}
 
+<section class="event-nav" aria-label="Selected event">
+  <p class="event-identity">Event <code>{{$e.EventID}}</code> <time class="muted nowrap" datetime="{{isodate $e.Timestamp}}" title="{{datetime $e.Timestamp}}">{{datetime $e.Timestamp}}, {{ago $e.Timestamp}}</time></p>
+  <div class="event-controls">
+    {{if .Data.Newer}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Newer}}">{{template "icon-prev" .}}<span>Newer</span></a>{{end}}
+    {{if .Data.Older}}<a class="button small" href="/issues/{{$i.ID}}?event={{.Data.Older}}"><span>Older</span>{{template "icon-next" .}}</a>{{end}}
+    {{if .Data.Newer}}<a class="button small" href="/issues/{{$i.ID}}">Latest</a>{{end}}
+  </div>
+</section>
+
 {{if $e.Breadcrumbs}}
-<section class="panel issue-breadcrumbs" id="breadcrumbs">
-  <div class="panel-head"><h2>Breadcrumbs <span class="muted small">({{len $e.Breadcrumbs}})</span></h2><span class="section-kicker">Before the break</span></div>
+<section class="panel" id="breadcrumbs">
+  <div class="panel-head"><h2>Breadcrumbs</h2><span class="panel-meta">{{len $e.Breadcrumbs}}</span></div>
   <div class="table-scroll" tabindex="0" role="region" aria-label="Event breadcrumbs">
     <table class="crumbs-table">
       <thead><tr><th scope="col">Time</th><th scope="col">Category</th><th scope="col">Description</th><th scope="col">Level</th></tr></thead>
       <tbody>
       {{range $e.Breadcrumbs}}
         <tr class="crumb-{{.Level}}">
-          <td class="mono small">{{if not .Timestamp.IsZero}}<time datetime="{{isodate .Timestamp}}">{{clock .Timestamp}}</time>{{else}}—{{end}}</td>
+          <td class="mono">{{if not .Timestamp.IsZero}}<time datetime="{{isodate .Timestamp}}">{{clock .Timestamp}}</time>{{else}}—{{end}}</td>
           <td>{{if .Category}}{{.Category}}{{else if .Type}}{{.Type}}{{else}}event{{end}}</td>
-          <td class="mono small"><span class="crumb-message">{{.Message}}</span>{{if .Data}}<span class="muted crumb-data">{{stringify .Data}}</span>{{end}}</td>
-          <td class="small">{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
+          <td class="mono"><span class="crumb-message">{{.Message}}</span>{{if .Data}}<span class="muted crumb-data">{{stringify .Data}}</span>{{end}}</td>
+          <td>{{if .Level}}{{.Level}}{{else}}—{{end}}</td>
         </tr>
       {{end}}
       </tbody>
@@ -157,29 +126,29 @@
 {{end}}
 
 {{with $e.Request}}
-<section class="panel issue-data-panel" id="request">
-  <div class="panel-head"><h2>Request</h2><span class="section-kicker">Incoming signal</span></div>
+<section class="panel" id="request">
+  <h2>Request</h2>
   <table class="kv"><caption class="sr-only">Request data</caption><tbody>{{range $k := sortedKeys .}}<tr><th scope="row">{{$k}}</th><td><code>{{stringify (index $e.Request $k)}}</code></td></tr>{{end}}</tbody></table>
 </section>
 {{end}}
 
 {{with $e.Contexts}}
-<section class="panel issue-data-panel" id="contexts">
-  <div class="panel-head"><h2>Contexts</h2><span class="section-kicker">Runtime notes</span></div>
+<section class="panel" id="contexts">
+  <h2>Contexts</h2>
   <table class="kv"><caption class="sr-only">Event contexts</caption><tbody>{{range $k := sortedKeys .}}<tr><th scope="row">{{$k}}</th><td><code>{{stringify (index $e.Contexts $k)}}</code></td></tr>{{end}}</tbody></table>
 </section>
 {{end}}
 
 {{with $e.Extra}}
-<section class="panel issue-data-panel" id="additional-data">
-  <div class="panel-head"><h2>Additional data</h2><span class="section-kicker">Liner notes</span></div>
+<section class="panel" id="additional-data">
+  <h2>Additional data</h2>
   <table class="kv"><caption class="sr-only">Additional event data</caption><tbody>{{range $k := sortedKeys .}}<tr><th scope="row">{{$k}}</th><td><code>{{stringify (index $e.Extra $k)}}</code></td></tr>{{end}}</tbody></table>
 </section>
 {{end}}
 
 <section class="panel raw-event" id="raw-json">
   <details>
-    <summary><span><span class="section-kicker">Unedited take</span><strong>Raw event JSON</strong></span><span class="raw-event-action">Show / hide</span></summary>
+    <summary><h2>Raw event JSON</h2></summary>
     <pre class="code" tabindex="0">{{json $e}}</pre>
   </details>
 </section>
@@ -187,70 +156,61 @@
 </div>
 
 <aside class="issue-side" aria-label="Issue context">
-  <section class="panel issue-activity-panel">
-    <div class="panel-head"><h2>Activity</h2><span class="section-kicker">14 days</span></div>
-    <div class="barcode issue-side-barcode" role="img" aria-label="14-day activity: {{.Data.ActivitySummary}}">
-      <div class="bars barcode-bars" aria-hidden="true">{{range $idx, $count := .Data.Activity}}<span class="bar {{index $.Data.Bars $idx}}" title="{{$count}} {{plural $count "event" "events"}}"></span>{{end}}</div>
-      <div class="barcode-days" aria-hidden="true">{{range .Data.DayLabels}}<span>{{.}}</span>{{end}}</div>
+  <section class="side-section">
+    <h2>Last 14 days</h2>
+    <div class="barcode" role="img" aria-label="Last 14 days: {{.Data.ActivitySummary}}">
+      <div class="bars" aria-hidden="true">{{range $idx, $count := .Data.Activity}}<span class="bar {{index $.Data.Bars $idx}}" title="{{$count}} {{plural $count "event" "events"}}"></span>{{end}}</div>
+      <div class="barcode-axis" aria-hidden="true"><span>{{.Data.ActivityFrom}}</span><span>Today</span></div>
     </div>
-    <p class="activity-total"><strong>{{comma .Data.ActivityTotal}}</strong> {{plural .Data.ActivityTotal "event" "events"}} <span class="muted">in this window</span></p>
-    <dl class="stats issue-stats">
-      <dt>Lifetime events</dt><dd>{{comma $i.TimesSeen}}</dd>
-      <dt>First seen</dt><dd><time datetime="{{isodate $i.FirstSeen}}" title="{{datetime $i.FirstSeen}}">{{ago $i.FirstSeen}}</time></dd>
-      <dt>Last seen</dt><dd><time datetime="{{isodate $i.LastSeen}}" title="{{datetime $i.LastSeen}}">{{ago $i.LastSeen}}</time></dd>
-    </dl>
+    <p class="muted">{{comma .Data.ActivityTotal}} {{plural .Data.ActivityTotal "event" "events"}} in this window{{with maxInt .Data.Activity}}, at most {{comma .}} in one day{{end}}</p>
   </section>
 
   {{if $e}}
-  <section class="panel issue-tags-panel">
-    <div class="panel-head"><h2>Tags</h2><span class="section-kicker">Event metadata</span></div>
-    <div class="tags issue-tags">
-      {{with $e.Environment}}<span class="tag">environment = {{.}}</span>{{end}}
-      {{with $e.Release}}<span class="tag">release = {{.}}</span>{{end}}
-      {{with $e.Platform}}<span class="tag">platform = {{.}}</span>{{end}}
-      {{with $e.ServerName}}<span class="tag">server = {{.}}</span>{{end}}
-      {{with $e.Logger}}<span class="tag">logger = {{.}}</span>{{end}}
-      {{range $e.Tags}}<span class="tag">{{.Key}} = {{.Value}}</span>{{end}}
-      {{with $e.SDK}}<span class="tag">sdk = {{.Name}} {{.Version}}</span>{{end}}
-    </div>
+  <section class="side-section">
+    <h2>Tags</h2>
+    <dl class="stats">
+      {{with $e.Environment}}<dt>environment</dt><dd>{{.}}</dd>{{end}}
+      {{with $e.Release}}<dt>release</dt><dd>{{.}}</dd>{{end}}
+      {{with $e.Platform}}<dt>platform</dt><dd>{{.}}</dd>{{end}}
+      {{with $e.ServerName}}<dt>server</dt><dd>{{.}}</dd>{{end}}
+      {{with $e.Logger}}<dt>logger</dt><dd>{{.}}</dd>{{end}}
+      {{range $e.Tags}}<dt>{{.Key}}</dt><dd>{{.Value}}</dd>{{end}}
+      {{with $e.SDK}}<dt>sdk</dt><dd>{{.Name}} {{.Version}}</dd>{{end}}
+    </dl>
   </section>
 
   {{with $e.User}}
-  <section class="panel issue-user-panel">
-    <div class="panel-head"><h2>User</h2><span class="section-kicker">Who hit it</span></div>
-    <dl class="stats issue-user-stats">{{range $k := sortedKeys .}}<dt>{{$k}}</dt><dd>{{stringify (index $e.User $k)}}</dd>{{end}}</dl>
-  </section>
-  {{end}}
-
-  {{if $e.Breadcrumbs}}
-  <section class="panel issue-side-breadcrumbs">
-    <div class="panel-head"><h2>Breadcrumbs</h2><span class="section-kicker">{{len $e.Breadcrumbs}} steps</span></div>
-    <ol class="timeline">
-      {{range $e.Breadcrumbs}}
-      <li>
-        <span>{{if .Message}}{{.Message}}{{else if .Category}}{{.Category}}{{else}}{{.Type}}{{end}}</span>
-        {{if not .Timestamp.IsZero}}<time datetime="{{isodate .Timestamp}}" title="{{datetime .Timestamp}}">{{clock .Timestamp}}</time>{{end}}
-      </li>
-      {{end}}
-    </ol>
+  <section class="side-section">
+    <h2>User</h2>
+    <dl class="stats">{{range $k := sortedKeys .}}<dt>{{$k}}</dt><dd>{{stringify (index $e.User $k)}}</dd>{{end}}</dl>
   </section>
   {{end}}
   {{end}}
 
-  <section class="panel recent-events-panel">
-    <div class="panel-head"><h2>Recent events</h2><span class="section-kicker">{{len .Data.Recent}} {{plural (len .Data.Recent) "take" "takes"}}</span></div>
+  <section class="side-section">
+    <h2>Recent events</h2>
     {{if .Data.Recent}}
-    <ol class="recent issue-recent">
+    <ol class="recent">
       {{range .Data.Recent}}
       <li>
-        <span class="recent-track" aria-hidden="true"></span>
-        <span class="recent-copy"><a href="/issues/{{$i.ID}}?event={{.ID}}" title="Event {{.EventID}}"><time datetime="{{isodate .ReceivedAt}}" title="{{datetime .ReceivedAt}}">{{ago .ReceivedAt}}</time></a><span class="muted small">{{if .Environment}}{{.Environment}}{{else}}event{{end}}{{with .Release}} <span aria-hidden="true">/</span> {{.}}{{end}}</span></span>
-        <span class="level-label level-{{.Level}}">{{.Level}}</span>
+        <a href="/issues/{{$i.ID}}?event={{.ID}}"><time datetime="{{isodate .ReceivedAt}}" title="{{datetime .ReceivedAt}}">{{ago .ReceivedAt}}</time></a>
+        <span class="muted">{{.Environment}}{{if and .Environment .Release}} · {{end}}{{.Release}}</span>
+        {{if ne (printf "%s" .Level) (printf "%s" $i.Level)}}<span class="level-label level-{{.Level}}">{{.Level}}</span>{{end}}
       </li>
       {{end}}
     </ol>
-    {{else}}<p class="muted small">No retained events.</p>{{end}}
+    {{else}}<p class="muted">No retained events.</p>{{end}}
   </section>
+
+  <details class="side-section danger-details">
+    <summary>Delete issue</summary>
+    <form method="post" action="/issues/{{$i.ID}}/delete" class="stack">
+      <input type="hidden" name="csrf" value="{{$csrf}}">
+      <p class="muted">Deletes this issue and its {{comma $i.TimesSeen}} {{plural $i.TimesSeen "event" "events"}}. If it happens again it comes back as a new issue. This can't be undone.</p>
+      <label class="check"><input type="checkbox" name="confirm" value="delete" required> Yes, delete it</label>
+      <button type="submit" class="destructive">Delete issue</button>
+    </form>
+  </details>
 </aside>
 </div>
 {{end}}

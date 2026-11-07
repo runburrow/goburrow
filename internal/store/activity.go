@@ -103,8 +103,16 @@ type StatusCounts struct {
 // IssueStatusCounts returns per-status issue totals for a project in one
 // query (served by issues_by_project).
 func (s *Store) IssueStatusCounts(ctx context.Context, projectID int64) (StatusCounts, error) {
+	return s.FilteredStatusCounts(ctx, projectID, IssueFilter{})
+}
+
+// FilteredStatusCounts is IssueStatusCounts restricted to issues matching the
+// filter's query and levels (its Status is ignored), so status tabs agree
+// with the list underneath them.
+func (s *Store) FilteredStatusCounts(ctx context.Context, projectID int64, f IssueFilter) (StatusCounts, error) {
 	var sc StatusCounts
-	rows, err := s.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM issues WHERE project_id = ? GROUP BY status`, projectID)
+	where, args := issueWhere(projectID, f)
+	rows, err := s.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM issues WHERE `+strings.Join(where, " AND ")+` GROUP BY status`, args...)
 	if err != nil {
 		return sc, err
 	}
