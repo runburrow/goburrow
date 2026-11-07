@@ -25,5 +25,5 @@ Three poses: **sit** (the mascot, by its burrow), **peek** (coming out of the bu
 | `github-social.png` | 1280×640 | GitHub repository Settings → Social preview |
 | `banner-dark.png`, `banner-light.png` | 1280×320 | README header; GitHub picks the one matching the reader's theme |
 
-Copies of `og.png` and the icons live in `site/` and `internal/web/static/`, where the pages
-reference them.
+Copies of `og.png` and the icons live in `internal/web/static/` and in the landing page's
+repository, [runburrow/landing](https://github.com/runburrow/landing), where the pages reference them.
