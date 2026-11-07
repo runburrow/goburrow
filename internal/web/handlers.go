@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -122,14 +123,26 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	email := r.PostFormValue("email")
 	next := r.PostFormValue("next")
+	keys := throttleKeys(r, email)
+	if blocked, wait := s.throttle.blocked(keys); blocked {
+		mins := int(math.Ceil(wait.Minutes()))
+		if mins < 1 {
+			mins = 1
+		}
+		s.render(w, r, http.StatusTooManyRequests, "login", "Log in", map[string]string{
+			"Error": fmt.Sprintf("Too many failed attempts. Try again in %d minute%s.", mins, map[bool]string{true: "", false: "s"}[mins == 1]), "Email": email, "Next": next})
+		return
+	}
 	u, err := s.Store.Authenticate(r.Context(), email, r.PostFormValue("password"))
 	if errors.Is(err, store.ErrBadCredentials) {
+		s.throttle.fail(keys)
 		s.render(w, r, http.StatusUnauthorized, "login", "Log in", map[string]string{"Error": "That email and password don't match. Check both and try again.", "Email": email, "Next": next})
 		return
 	} else if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
+	s.throttle.success(keys)
 	s.startSession(w, r, u.ID, safeNext(next))
 }
 
@@ -262,8 +275,11 @@ func (s *Server) webhookCreate(w http.ResponseWriter, r *http.Request) {
 	back := "/projects/" + p.Slug + "/settings"
 	u := strings.TrimSpace(r.PostFormValue("url"))
 	onNew, onRegression := r.PostFormValue("on_new") == "1", r.PostFormValue("on_regression") == "1"
-	switch {
-	case !notify.ValidURL(u):
+	switch err := notify.CheckURL(u, s.Notify.AllowPrivate); {
+	case errors.Is(err, notify.ErrPrivateAddress):
+		http.Redirect(w, r, back+"?flash=webhook-private#webhooks", http.StatusSeeOther)
+		return
+	case err != nil:
 		http.Redirect(w, r, back+"?flash=webhook-invalid#webhooks", http.StatusSeeOther)
 		return
 	case !onNew && !onRegression:

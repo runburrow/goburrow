@@ -25,19 +25,20 @@ import (
 // Webhooks are set per project in its settings. FallbackURL (from
 // BURROW_WEBHOOK_URL) is used only for projects that have none of their own.
 type Dispatcher struct {
-	Store       *store.Store
-	FallbackURL string
-	BaseURL     string // public dashboard URL for links
-	Log         *slog.Logger
-	Client      *http.Client
+	Store        *store.Store
+	FallbackURL  string
+	BaseURL      string // public dashboard URL for links
+	AllowPrivate bool   // permit webhooks on private/local networks (see ssrf.go)
+	Log          *slog.Logger
+	Client       *http.Client
 
 	sem chan struct{}
 }
 
-func NewDispatcher(st *store.Store, fallbackURL, baseURL string, log *slog.Logger) *Dispatcher {
+func NewDispatcher(st *store.Store, fallbackURL, baseURL string, allowPrivate bool, log *slog.Logger) *Dispatcher {
 	return &Dispatcher{
-		Store: st, FallbackURL: fallbackURL, BaseURL: strings.TrimRight(baseURL, "/"), Log: log,
-		Client: &http.Client{Timeout: 10 * time.Second},
+		Store: st, FallbackURL: fallbackURL, BaseURL: strings.TrimRight(baseURL, "/"), AllowPrivate: allowPrivate, Log: log,
+		Client: newClient(allowPrivate),
 		sem:    make(chan struct{}, 8), // bound concurrent deliveries
 	}
 }
@@ -56,12 +57,6 @@ type payload struct {
 		Release     string `json:"release,omitempty"`
 		URL         string `json:"url"`
 	} `json:"burrow"`
-}
-
-// ValidURL reports whether u is usable as a webhook destination.
-func ValidURL(u string) bool {
-	p, err := url.Parse(u)
-	return err == nil && (p.Scheme == "https" || p.Scheme == "http") && p.Host != "" && len(u) <= 2000
 }
 
 // targets returns the URLs to alert for this kind of event in project p.

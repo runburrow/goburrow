@@ -43,6 +43,7 @@ type Server struct {
 
 	pages    map[string]*template.Template
 	assetTag string // hash of the static files, busts browser caches on every change
+	throttle *loginThrottle
 }
 
 func (s *Server) now() time.Time {
@@ -58,6 +59,7 @@ func (s *Server) Handler() (http.Handler, error) {
 		return nil, err
 	}
 	s.assetTag = hashStatic()
+	s.throttle = newLoginThrottle(s.now)
 	mux := http.NewServeMux()
 	s.Ingest.Register(mux)
 
@@ -266,6 +268,9 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 			h.Set("X-Frame-Options", "DENY")
 			h.Set("Referrer-Policy", "same-origin")
 			h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; frame-ancestors 'none'; form-action 'self'")
+		}
+		if s.BaseURL != nil && s.BaseURL.Scheme == "https" {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
 		next.ServeHTTP(w, r)
 	})

@@ -48,7 +48,7 @@ func newHarness(t *testing.T) *harness {
 	ts := httptest.NewUnstartedServer(nil)
 	ts.Start()
 	t.Cleanup(ts.Close)
-	alerts := notify.NewDispatcher(st, "", ts.URL, log)
+	alerts := notify.NewDispatcher(st, "", ts.URL, true, log)
 	srv := &Server{Store: st, Ingest: &ingest.Handler{Store: st, Log: log, Notifier: alerts}, Notify: alerts, Log: log, Version: "test", Now: func() time.Time { return testNow }}
 	srv.BaseURL, _ = url.Parse(ts.URL)
 	h, err := srv.Handler()

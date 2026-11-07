@@ -34,8 +34,8 @@ traces, breadcrumbs, tags and user context.
   custom endpoint.
 - **Idempotent ingestion.** SDK retries never double-count.
 - **Retention.** Old events are pruned automatically (30 days by default).
-- **Secure defaults.** bcrypt passwords, CSRF tokens, a strict CSP, SameSite cookies, and a
-  non-root distroless container.
+- **Secure defaults.** bcrypt passwords, login throttling, CSRF tokens, a strict CSP, HSTS,
+  SameSite cookies, webhooks that refuse private addresses, and a non-root distroless container.
 
 ## Quick start
 
@@ -97,6 +97,7 @@ Every option can be set with a flag or an environment variable.
 | `BURROW_BASE_URL` | `-base-url` | `http://localhost<addr>` | Public URL. It goes into DSNs and alert links, and `https://` enables secure cookies. **Set this in production.** |
 | `BURROW_RETENTION_DAYS` | `-retention-days` | `30` | Delete events older than this. `0` keeps them forever. |
 | `BURROW_WEBHOOK_URL` | `-webhook-url` | | Fallback webhook for projects that have none of their own in settings |
+| `BURROW_WEBHOOK_ALLOW_PRIVATE` | `-webhook-allow-private` | `false` | Allow webhooks on private/LAN addresses. Refused by default so a webhook can't be pointed at internal services. |
 
 ## System requirements
 

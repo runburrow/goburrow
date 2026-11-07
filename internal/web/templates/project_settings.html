@@ -14,6 +14,7 @@
 {{if eq .Flash "delete-confirm"}}<p class="alert error" role="alert">Type the project slug exactly to confirm deletion.</p>{{end}}
 {{if eq .Flash "webhook-added"}}<p class="alert ok" role="status">Webhook added. Send a test to check it posts where you expect.</p>{{end}}
 {{if eq .Flash "webhook-removed"}}<p class="alert ok" role="status">Webhook removed.</p>{{end}}
+{{if eq .Flash "webhook-private"}}<p class="alert error" role="alert">That address is on a private or local network, which webhooks can't reach by default. If your chat server really lives there, start Burrow with <code>BURROW_WEBHOOK_ALLOW_PRIVATE=true</code>.</p>{{end}}
 {{if eq .Flash "webhook-invalid"}}<p class="alert error" role="alert">That webhook URL doesn't look right. Use the full address, starting with https://.</p>{{end}}
 {{if eq .Flash "webhook-no-trigger"}}<p class="alert error" role="alert">Pick at least one of new issues or regressions, or the webhook would never fire.</p>{{end}}
 {{if eq .Flash "webhook-limit"}}<p class="alert error" role="alert">A project can have up to {{.Data.MaxWebhooks}} webhooks. Remove one to add another.</p>{{end}}

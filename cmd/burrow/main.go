@@ -39,6 +39,7 @@ func main() {
 		baseURL   = flag.String("base-url", env("BURROW_BASE_URL", ""), "public URL, used in DSNs and links (BURROW_BASE_URL); defaults to http://localhost<addr>")
 		retention = flag.Int("retention-days", atoi(env("BURROW_RETENTION_DAYS", "30")), "delete events older than this many days, 0 = keep forever (BURROW_RETENTION_DAYS)")
 		webhook   = flag.String("webhook-url", env("BURROW_WEBHOOK_URL", ""), "fallback webhook for projects with none set in their settings: Slack, Discord or custom (BURROW_WEBHOOK_URL)")
+		whPrivate = flag.Bool("webhook-allow-private", env("BURROW_WEBHOOK_ALLOW_PRIVATE", "") == "true", "allow webhooks on private/LAN addresses, which are refused by default (BURROW_WEBHOOK_ALLOW_PRIVATE=true)")
 		showVer   = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
@@ -48,7 +49,7 @@ func main() {
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	if err := run(log, *addr, *dbPath, *baseURL, *retention, *webhook); err != nil {
+	if err := run(log, *addr, *dbPath, *baseURL, *retention, *webhook, *whPrivate); err != nil {
 		log.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -62,7 +63,7 @@ func atoi(s string) int {
 	return n
 }
 
-func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhookURL string) error {
+func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhookURL string, webhookAllowPrivate bool) error {
 	if base == "" {
 		host := addr
 		if strings.HasPrefix(host, ":") {
@@ -83,7 +84,12 @@ func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhook
 
 	// Per-project webhooks live in the database; webhookURL is the fallback
 	// for projects that have none.
-	alerts := notify.NewDispatcher(st, webhookURL, bu.String(), log)
+	if webhookURL != "" {
+		if err := notify.CheckURL(webhookURL, webhookAllowPrivate); err != nil {
+			return fmt.Errorf("webhook URL: %w (set BURROW_WEBHOOK_ALLOW_PRIVATE=true for a LAN address)", err)
+		}
+	}
+	alerts := notify.NewDispatcher(st, webhookURL, bu.String(), webhookAllowPrivate, log)
 	ing := &ingest.Handler{Store: st, Log: log, Notifier: alerts}
 	srv := &web.Server{Store: st, Ingest: ing, Notify: alerts, Log: log, BaseURL: bu, Version: version}
 	h, err := srv.Handler()
