@@ -15,9 +15,9 @@ setting, like the app.
   ```
   Then put "Open the demo, triage the sample projects, and resolve something." back as the
   closing section's lead.
-- **Domain.** The canonical, Open Graph, Twitter and JSON-LD URLs use `https://goburrow.xyz/`
+- **Domain.** The canonical, Open Graph, Twitter and JSON-LD URLs use `https://goburrow.net/`
   (all in the `<head>` of `index.html`). Change them together if the domain changes:
-  `sed -i 's#https://goburrow.xyz#https://NEW-DOMAIN#g' site/index.html`.
+  `sed -i 's#https://goburrow.net#https://NEW-DOMAIN#g' site/index.html`.
 - **Social previews.** `og.png` (1200×630) is the card for links to the site. Check it with
   any link-preview debugger once the site is live. The GitHub repository's preview is
   `brand/social/github-social.png`; upload it under the repo's Settings → Social preview.

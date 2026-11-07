@@ -8,16 +8,16 @@
 <meta name="description" content="Burrow is open-source error tracking you run yourself: one ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
 <meta name="author" content="mozthewah">
 <meta name="robots" content="index, follow">
-<link rel="canonical" href="https://goburrow.xyz/">
+<link rel="canonical" href="https://goburrow.net/">
 
 <!-- Open Graph (Facebook, LinkedIn, Slack, Discord, iMessage…) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Burrow">
 <meta property="og:locale" content="en_US">
-<meta property="og:url" content="https://goburrow.xyz/">
+<meta property="og:url" content="https://goburrow.net/">
 <meta property="og:title" content="Burrow · Self-hosted error tracking">
 <meta property="og:description" content="One ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
-<meta property="og:image" content="https://goburrow.xyz/og.png">
+<meta property="og:image" content="https://goburrow.net/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -27,7 +27,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Burrow · Self-hosted error tracking">
 <meta name="twitter:description" content="One ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.">
-<meta name="twitter:image" content="https://goburrow.xyz/og.png">
+<meta name="twitter:image" content="https://goburrow.net/og.png">
 <meta name="twitter:image:alt" content="The Burrow fox sitting by its burrow, next to the words: Your errors, your server. Self-hosted error tracking in one ~14 MB binary and a SQLite file.">
 
 <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
@@ -42,8 +42,8 @@
   "@type": "SoftwareApplication",
   "name": "Burrow",
   "description": "Burrow is open-source error tracking you run yourself: one ~14 MB binary and a SQLite file. Point the SDK you already use at it, or send plain JSON.",
-  "url": "https://goburrow.xyz/",
-  "image": "https://goburrow.xyz/og.png",
+  "url": "https://goburrow.net/",
+  "image": "https://goburrow.net/og.png",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Linux, macOS, Windows",
   "license": "https://opensource.org/licenses/MIT",
@@ -269,6 +269,37 @@ docker compose up -d</pre>
   </div>
 </section>
 
+<section class="section" id="hosted" aria-labelledby="hosted-title">
+  <div class="wrap split">
+    <div>
+      <h2 id="hosted-title">Can't run a server right now?</h2>
+      <p class="section-lead">We've all been there. Ask for an account on our instance instead: the same Burrow, nothing to install, no cost.</p>
+      <ul class="facts">
+        <li><span><strong>For people who can't host their own yet.</strong> Tell us a little about what you're making and we'll set you up.</span></li>
+        <li><span><strong>Your data stays yours.</strong> Email any time and your account and everything in it is deleted.</span></li>
+        <li><span><strong>Move out whenever.</strong> Run your own Burrow later and point your SDK at its DSN. Nothing else changes.</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="letter" aria-label="What to send">
+        <dl class="letter-head">
+          <div><dt>To</dt><dd><code id="hosted-address">hosting@goburrow.net</code></dd></div>
+          <div><dt>Subject</dt><dd>Hosted Burrow account</dd></div>
+        </dl>
+        <ol class="letter-body">
+          <li>What you're building</li>
+          <li>Where to find it, a link is perfect</li>
+          <li>How big your team is <span class="muted">(optional, just curious)</span></li>
+        </ol>
+      </div>
+      <div class="hero-actions letter-actions">
+        <a class="button primary" href="mailto:hosting@goburrow.net?subject=Hosted%20Burrow%20account&amp;body=What%20I%27m%20building%3A%0A%0AWhere%20to%20find%20it%20%28a%20link%29%3A%0A%0AHow%20big%20my%20team%20is%20%28optional%2C%20just%20curious%29%3A%0A">Write the email</a>
+        <button class="copy copy-address" type="button" data-copy="#hosted-address">Copy address</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="section" aria-labelledby="close-title">
   <div class="wrap close">
     <span class="burrow looping" aria-hidden="true"><svg class="fox fox-peek" viewBox="0 0 160 86" aria-hidden="true" focusable="false">
@@ -302,7 +333,7 @@ docker compose up -d</pre>
 <footer class="site-foot">
   <div class="wrap">
     <p>Burrow is an independent open-source project and is not affiliated with or endorsed by Functional Software, Inc. “Sentry” is their trademark. Burrow implements the publicly documented Sentry ingestion protocol.</p>
-    <p><a href="https://github.com/mozthewah/OpenSourcedSentryAlternative">Source on GitHub</a> · MIT License</p>
+    <p class="foot-links">Questions: <a href="mailto:contact@goburrow.net">contact@goburrow.net</a> · Maintainer: <a href="mailto:sean@goburrow.net">sean@goburrow.net</a><br><a href="https://github.com/mozthewah/OpenSourcedSentryAlternative">Source on GitHub</a> · MIT License</p>
   </div>
 </footer>
 </body>

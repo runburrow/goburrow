@@ -174,6 +174,19 @@ code, pre, kbd { font-family: var(--mono); }
 .not-yet { margin-top: 28px; color: var(--muted); font-size: .9375rem; }
 
 /* Install */
+/* Hosted accounts: the email to send, previewed as a letter. */
+.letter { border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+.letter-head { margin: 0; padding: 4px 20px; border-bottom: 1px solid var(--border); }
+.letter-head div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; padding: 10px 0; }
+.letter-head div + div { border-top: 1px solid var(--border); }
+.letter-head dt { color: var(--muted); font-size: .875rem; }
+.letter-head dd { margin: 0; overflow-wrap: anywhere; }
+.letter-body { margin: 0; padding: 20px 20px 24px 44px; display: grid; gap: 14px; }
+.letter-body li { padding-left: 4px; }
+.letter-body li::marker { color: var(--muted); font: 500 .875rem var(--mono); }
+.hero-actions.letter-actions { order: 0; margin-top: 18px; align-items: center; }
+.copy-address { min-height: 44px; }
+.foot-links { text-align: right; }
 .install { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; margin-top: 40px; }
 .install h3 { font-size: 1.0625rem; margin-bottom: 12px; }
 .install .code { border-radius: var(--radius); }
@@ -250,6 +263,7 @@ code, pre, kbd { font-family: var(--mono); }
   .phone .shot { order: 2; }
 }
 @media (max-width: 640px) {
+  .foot-links { text-align: left; }
   :root { --page: calc(100% - 32px); }
   .site-nav a:not(.button) { display: none; }
   .issue { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main main" "level count" "bars side"; gap: 6px 12px; }
