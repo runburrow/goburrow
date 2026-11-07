@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
+	"github.com/runburrow/goburrow/internal/event"
 )
 
 func TestIssueAndProjectActivity(t *testing.T) {

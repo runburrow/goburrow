@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 func reportServer(t *testing.T) (*httptest.Server, *store.Store, *store.Project) {

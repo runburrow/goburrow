@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/event"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 // Dispatcher POSTs a JSON payload to each of a project's webhooks. The

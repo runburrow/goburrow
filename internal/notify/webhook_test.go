@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 func TestTargetsFallbackOnlyWithoutProjectWebhooks(t *testing.T) {

@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/ingest"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/notify"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/ingest"
+	"github.com/runburrow/goburrow/internal/notify"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 //go:embed templates/*.html

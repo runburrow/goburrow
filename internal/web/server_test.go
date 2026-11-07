@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/ingest"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/notify"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/event"
+	"github.com/runburrow/goburrow/internal/ingest"
+	"github.com/runburrow/goburrow/internal/notify"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 // testNow is the fixed clock for rendered activity, so tests can't flake

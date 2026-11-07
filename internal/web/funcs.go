@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/event"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 var funcs = template.FuncMap{

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/event"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 // The report API is Burrow's own, SDK-free way in: one JSON POST per error

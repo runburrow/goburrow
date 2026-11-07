@@ -1,4 +1,4 @@
-module github.com/mozthewah/opensourcedsentryalternative
+module github.com/runburrow/goburrow
 
 go 1.26.0
 

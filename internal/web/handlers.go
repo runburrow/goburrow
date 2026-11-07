@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/notify"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/event"
+	"github.com/runburrow/goburrow/internal/notify"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 // ------------------------------------------------------------ view models

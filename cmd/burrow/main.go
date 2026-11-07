@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/ingest"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/notify"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
-	"github.com/mozthewah/opensourcedsentryalternative/internal/web"
+	"github.com/runburrow/goburrow/internal/ingest"
+	"github.com/runburrow/goburrow/internal/notify"
+	"github.com/runburrow/goburrow/internal/store"
+	"github.com/runburrow/goburrow/internal/web"
 )
 
 // version is set at build time: -ldflags "-X main.version=v0.1.0"

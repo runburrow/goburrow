@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
+	"github.com/runburrow/goburrow/internal/store"
 )
 
 // receiver is a fake chat webhook that records what Burrow posts to it.

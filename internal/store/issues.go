@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mozthewah/opensourcedsentryalternative/internal/event"
+	"github.com/runburrow/goburrow/internal/event"
 )
 
 type IssueStatus string
