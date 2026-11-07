@@ -4,3 +4,9 @@
 *.db-shm
 *.db-wal
 /data/
+
+# Local tool state: editor/agent settings, design review working files
+# (including seed scripts with demo credentials) and Impeccable's mocks.
+/.claude/
+/.design-review/
+/.impeccable/

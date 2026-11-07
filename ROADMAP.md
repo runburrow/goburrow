@@ -11,11 +11,17 @@ These are rough priorities, not promises.
 - [x] Single admin user, projects with DSNs, key rotation
 - [x] Webhook alerts, retention pruning, Docker image, CI
 
+## v0.2
+- [x] Per-project webhooks in settings (new issues and/or regressions, send test)
+- [x] Report API for runtimes without a Sentry SDK, with Roblox (Luau) support
+- [x] Setup steps for 20 platforms
+- [x] Ingest rate limiting per project (`429` + `X-Sentry-Rate-Limits` so SDKs back off)
+- [x] Login throttling, hashed session tokens, SSRF-safe webhooks
+- [x] Bulk resolve/ignore with undo
+
 ## Next up
 - [ ] **Multiple users & invites** (the schema already supports many users; this needs UI and roles)
-- [ ] **Ingest rate limiting** per project (respond with `429` + `X-Sentry-Rate-Limits` so SDKs back off)
-- [ ] **Login throttling** against brute force
-- [ ] **Email alerts** (SMTP) and per-project alert rules (env filters, "only regressions", etc.)
+- [ ] **Email alerts** (SMTP) and per-project alert rules (env filters, etc.)
 - [ ] **Tag facets** on the issue page (e.g. "80% of events: browser=Safari")
 - [ ] **Source maps** for minified JavaScript stack traces
 - [ ] **Merge / unmerge issues** manually

@@ -163,7 +163,12 @@
         // On the list, act on the ticked issues; on an issue page, on that issue.
         const value = event.key === "r" ? "resolved" : "ignored";
         const bulk = document.querySelector(`.bulk-bar button[value="${value}"]:not(:disabled)`);
-        handled = bulk ? (bulk.click(), true) : press(`[data-shortcut="${event.key}"]`);
+        if (bulk) { bulk.click(); break; }
+        if (press(`[data-shortcut="${event.key}"]`)) break;
+        // On the list with nothing ticked: say how, instead of doing nothing.
+        const count = document.querySelector(".bulk-bar .bulk-count");
+        if (count) count.textContent = "Tick issues first: press x on a row, or use its box.";
+        else handled = false;
         break;
       }
       case "u":

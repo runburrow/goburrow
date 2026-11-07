@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/mozthewah/opensourcedsentryalternative/internal/store"
@@ -36,8 +37,8 @@ func TestTargetsFallbackOnlyWithoutProjectWebhooks(t *testing.T) {
 		t.Errorf("regression: targets = %v", got)
 	}
 	for u, want := range map[string]bool{"https://hooks.slack.com/x": true, "http://10.0.0.2:9000/h": true, "ftp://x": false, "hooks.slack.com/x": false, "": false} {
-		if ValidURL(u) != want {
-			t.Errorf("ValidURL(%q) = %v", u, !want)
+		if (CheckURL(u, true) == nil) != want {
+			t.Errorf("CheckURL(%q, allowPrivate) ok = %v", u, !want)
 		}
 	}
 }
@@ -77,5 +78,17 @@ func TestClientRefusesPrivateAndRedirects(t *testing.T) {
 	}
 	if err := d.post(context.Background(), rc.URL+"/redirect", body); err == nil {
 		t.Error("redirect was followed")
+	}
+}
+
+func TestInertDefusesChatMarkup(t *testing.T) {
+	got := inert("boom @channel <!here> [click](https://evil.test) a@b.co")
+	for _, bad := range []string{"@channel", "<!here>", "](", "a@b"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("inert left %q in %q", bad, got)
+		}
+	}
+	if strings.ReplaceAll(got, zeroWidth, "") != "boom @channel <!here> [click](https://evil.test) a@b.co" {
+		t.Error("inert changed visible text")
 	}
 }

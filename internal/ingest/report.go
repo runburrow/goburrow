@@ -65,6 +65,9 @@ func (h *Handler) report(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if !h.allow(w, project, len(reports)) {
+		return
+	}
 	now := h.now()
 	ids := make([]string, 0, len(reports))
 	for i, rep := range reports {

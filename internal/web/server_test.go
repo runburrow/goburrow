@@ -279,12 +279,29 @@ func TestEndToEnd(t *testing.T) {
 		t.Errorf("stale undo link should not offer undo once the status has changed")
 	}
 
-	// Bulk status change from the list, scoped to the project.
-	h.post("/projects/web-app/issues/status", url.Values{"status": {"ignored"}, "id": {fmt.Sprint(issue.ID)}, "back": {"/projects/web-app?status=unresolved"}})
+	// Bulk status change from the list, scoped to the project, with an undo
+	// that puts each issue back and can't be replayed.
+	_, body = h.post("/projects/web-app/issues/status", url.Values{"status": {"ignored"}, "id": {fmt.Sprint(issue.ID)}, "back": {"/projects/web-app?status=unresolved"}})
 	if i, _ := h.st.IssueByID(context.Background(), issue.ID); i.Status != store.StatusIgnored {
 		t.Errorf("bulk ignore: status = %s", i.Status)
 	}
-	h.post("/projects/web-app/issues/status", url.Values{"status": {"unresolved"}, "id": {fmt.Sprint(issue.ID)}})
+	was := fmt.Sprintf(`name="was" value="%d.unresolved"`, issue.ID)
+	if !strings.Contains(body, "Marked 1 issue ignored.") || !strings.Contains(body, was) {
+		t.Fatalf("bulk flash should offer undo")
+	}
+	undo := url.Values{"to": {"ignored"}, "was": {fmt.Sprintf("%d.unresolved", issue.ID)}, "back": {"/projects/web-app?status=unresolved"}}
+	if _, body := h.post("/projects/web-app/issues/restore", undo); !strings.Contains(body, "Restored 1 issue") {
+		t.Errorf("bulk undo should restore")
+	}
+	if i, _ := h.st.IssueByID(context.Background(), issue.ID); i.Status != store.StatusUnresolved {
+		t.Errorf("after bulk undo: status = %s", i.Status)
+	}
+	if _, body := h.post("/projects/web-app/issues/restore", undo); !strings.Contains(body, "Nothing to undo") {
+		t.Errorf("a replayed bulk undo should change nothing")
+	}
+	if _, body := h.get(fmt.Sprintf("/projects/web-app?flash=bulk&n=1&to=ignored&was=%d.unresolved", issue.ID)); strings.Contains(body, was) {
+		t.Errorf("a stale bulk flash should not offer undo")
+	}
 
 	// Level filter and search-aware tab counts.
 	if _, body := h.get("/projects/web-app?level=error"); !strings.Contains(body, "TypeError") {

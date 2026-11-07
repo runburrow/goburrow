@@ -46,7 +46,11 @@ func NewDispatcher(st *store.Store, fallbackURL, baseURL string, allowPrivate bo
 type payload struct {
 	Text    string `json:"text"`
 	Content string `json:"content"`
-	Burrow  struct {
+	// AllowedMentions stops Discord pinging anyone, whatever the text says.
+	AllowedMentions struct {
+		Parse []string `json:"parse"`
+	} `json:"allowed_mentions"`
+	Burrow struct {
 		Kind        string `json:"kind"` // "new_issue" | "regression" | "test"
 		Project     string `json:"project"`
 		IssueID     int64  `json:"issue_id,omitempty"`
@@ -100,8 +104,9 @@ func (d *Dispatcher) IssueEvent(ctx context.Context, p *store.Project, issueID i
 	pl.Burrow.Environment = ev.Environment
 	pl.Burrow.Release = ev.Release
 	pl.Burrow.URL = fmt.Sprintf("%s/issues/%d", d.BaseURL, issueID)
-	pl.Text = fmt.Sprintf("🦊 %s in %s: %s\n%s", verb, p.Name, pl.Burrow.Title, pl.Burrow.URL)
+	pl.Text = fmt.Sprintf("🦊 %s in %s: %s\n%s", verb, inert(p.Name), inert(pl.Burrow.Title), pl.Burrow.URL)
 	pl.Content = pl.Text
+	pl.AllowedMentions.Parse = []string{}
 	body, _ := json.Marshal(pl)
 
 	for _, u := range urls {
@@ -132,13 +137,25 @@ func (d *Dispatcher) Test(ctx context.Context, p *store.Project, u string) error
 	pl.Burrow.Project = p.Slug
 	pl.Burrow.Title = "Test alert"
 	pl.Burrow.URL = fmt.Sprintf("%s/projects/%s", d.BaseURL, p.Slug)
-	pl.Text = fmt.Sprintf("🦊 Test alert from Burrow for %s. New issues and regressions will look like this.\n%s", p.Name, pl.Burrow.URL)
+	pl.Text = fmt.Sprintf("🦊 Test alert from Burrow for %s. New issues and regressions will look like this.\n%s", inert(p.Name), pl.Burrow.URL)
 	pl.Content = pl.Text
+	pl.AllowedMentions.Parse = []string{}
 	body, _ := json.Marshal(pl)
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return d.post(ctx, u, body)
 }
+
+// zeroWidth breaks chat syntax without changing what people read.
+const zeroWidth = "\u200b"
+
+// inert defuses chat markup in text that came from events, which anyone
+// holding a project key can send: @channel/@everyone/@here mentions (Slack,
+// Mattermost, Discord), Slack's <!channel> and <url|label> forms, and
+// Markdown links. The structured "burrow" fields keep the original text.
+var inertReplacer = strings.NewReplacer("@", "@"+zeroWidth, "<", "<"+zeroWidth, "](", "]"+zeroWidth+"(")
+
+func inert(s string) string { return inertReplacer.Replace(s) }
 
 // ErrStatus is returned when the webhook answered with a non-2xx status.
 type ErrStatus struct{ Code int }

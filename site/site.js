@@ -43,7 +43,7 @@
       range.selectNodeContents(source);
       const selection = window.getSelection();
       selection.removeAllRanges(); selection.addRange(range);
-      button.textContent = "Selected";
+      button.textContent = "Selected, press Ctrl+C";
     }
     window.setTimeout(() => { button.textContent = label; }, 1800);
   });

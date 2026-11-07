@@ -34,8 +34,9 @@ traces, breadcrumbs, tags and user context.
   custom endpoint.
 - **Idempotent ingestion.** SDK retries never double-count.
 - **Retention.** Old events are pruned automatically (30 days by default).
-- **Secure defaults.** bcrypt passwords, login throttling, CSRF tokens, a strict CSP, HSTS,
-  SameSite cookies, webhooks that refuse private addresses, and a non-root distroless container.
+- **Secure defaults.** bcrypt passwords, login throttling, hashed session tokens, CSRF tokens,
+  a strict CSP, HSTS, SameSite cookies, a per-project ingestion rate limit, webhooks that refuse
+  private addresses and can't be used to @-mention a channel, and a non-root distroless container.
 
 ## Quick start
 
@@ -98,6 +99,8 @@ Every option can be set with a flag or an environment variable.
 | `BURROW_RETENTION_DAYS` | `-retention-days` | `30` | Delete events older than this. `0` keeps them forever. |
 | `BURROW_WEBHOOK_URL` | `-webhook-url` | | Fallback webhook for projects that have none of their own in settings |
 | `BURROW_WEBHOOK_ALLOW_PRIVATE` | `-webhook-allow-private` | `false` | Allow webhooks on private/LAN addresses. Refused by default so a webhook can't be pointed at internal services. |
+| `BURROW_RATE_LIMIT` | `-rate-limit` | `3000` | Events per minute each project may send. Over it, Burrow answers `429` with `Retry-After`, which the Sentry SDKs back off on. `0` turns it off. |
+| `BURROW_BEHIND_PROXY` | `-behind-proxy` | `false` | Set when a reverse proxy sits in front, so login throttling uses the client address the proxy adds to `X-Forwarded-For` rather than the proxy's own. |
 
 ## System requirements
 
@@ -131,6 +134,8 @@ Keep the database on a local disk, not NFS/SMB (SQLite locking) or a RAM-backed 
 
 - Put Burrow behind a TLS-terminating reverse proxy (Caddy, nginx, Traefik) and set
   `BURROW_BASE_URL=https://errors.example.com`.
+- Set `BURROW_BEHIND_PROXY=true` when the proxy is the only way in, so failed logins are
+  counted per visitor rather than per proxy.
 - Back up the SQLite file. `sqlite3 burrow.db ".backup backup.db"` is safe while it's running.
 - Point SDKs at the same public URL. Browser SDKs need it reachable from your users' browsers.
 

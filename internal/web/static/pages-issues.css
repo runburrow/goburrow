@@ -204,17 +204,22 @@ ol.context code { font: inherit; }
 
 /* Responsive ------------------------------------------------------------- */
 @media (max-width: 1100px) {
-  .issue-list .tracklist-head, .issue-row { grid-template-columns: 22px 76px minmax(0, 1fr) 76px 96px; }
-  .issue-list .track-activity { display: none; }
+  /* Narrower bars rather than none: the 14-day glance matters most on a laptop. */
+  .issue-list .tracklist-head, .issue-row { grid-template-columns: 22px 76px minmax(0, 1fr) 96px 64px 84px; }
   .issue-layout { grid-template-columns: minmax(0, 1fr) 240px; gap: 24px; }
 }
 @media (max-width: 900px) {
+  .issue-list .tracklist-head, .issue-row { grid-template-columns: 22px 76px minmax(0, 1fr) 76px 96px; }
+  .issue-list .track-activity { display: none; }
   .issue-layout { grid-template-columns: minmax(0, 1fr); }
   .issue-side { padding: 24px 0 0; border-left: 0; border-top: 1px solid var(--border); }
 }
 @media (max-width: 700px) {
-  /* The prompt gets its own line so the action buttons stay together on the next. */
+  /* The prompt gets its own line so the action buttons stay together on the
+     next. Once something is ticked the bar sticks to the top, so the actions
+     stay in reach while ticking rows further down. */
   .bulk-bar { padding: 8px 10px; }
+  .bulk-bar.has-selection { position: sticky; top: 0; z-index: 2; background: var(--bg); }
   .bulk-count { flex: 1 0 100%; }
   .issue-list .tracklist-head { display: none; }
   .issue-row { grid-template-columns: 26px auto auto minmax(0, 1fr); grid-template-areas: "check main main main" ". level events seen"; gap: 6px 12px; padding: 12px 4px; }

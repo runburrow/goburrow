@@ -105,11 +105,13 @@ its time grows with recent event volume. Every other page stays flat.
 
 ```sh
 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o burrow ./cmd/burrow
-taskset -c 0 ./burrow -db bench.db -retention-days 0 &
+taskset -c 0 ./burrow -db bench.db -retention-days 0 -rate-limit 0 &
 # create a project in the dashboard, then:
 go run ./tools/loadgen -url http://127.0.0.1:8000 -project 1 -key <public key> \
   -pid $(pgrep -x burrow) -dur 20s -conc 8 -issues 200
 ```
 
-Add `-rate 50` for a steady rate instead of full speed. For a memory limit, start the
+`-rate-limit 0` turns off the per-project ingestion limit (3,000 events a minute by
+default), which full-speed runs would otherwise hit within seconds. Add `-rate 50` to the
+load generator for a steady rate instead of full speed. For a memory limit, start the
 server with `systemd-run --user --scope -p MemoryMax=32M -p MemorySwapMax=0 ./burrow …`.

@@ -129,7 +129,7 @@ code, pre, kbd { font-family: var(--mono); }
 .sdk-tab { min-height: 40px; padding: 8px 14px; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; background: transparent; color: var(--muted); font: 500 .875rem var(--sans); cursor: pointer; }
 .sdk-tab[aria-selected="true"] { border-color: var(--border); background: var(--code-bg); color: var(--text); }
 .code { margin: 0; padding: 18px 20px; border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); background: var(--code-bg); font: .9rem/1.75 var(--mono); overflow-x: auto; tab-size: 2; }
-.code .dsn { display: inline-block; margin: 0 -6px; padding: 0 6px; border-radius: 3px; background: color-mix(in srgb, var(--blue) 18%, transparent); }
+.code .dsn { display: inline-block; margin: 0 -6px; padding: 0 6px; border-radius: var(--radius); background: color-mix(in srgb, var(--blue) 18%, transparent); }
 .code .c { color: var(--muted); }
 .facts { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 12px; }
 .facts li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; color: var(--muted); }
@@ -148,6 +148,8 @@ code, pre, kbd { font-family: var(--mono); }
 .notes p { color: var(--muted); font-size: .9375rem; }
 .phone { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 4fr); gap: clamp(28px, 6vw, 96px); align-items: center; }
 .phone .shot { max-width: 340px; justify-self: center; }
+/* The one corner off the scale: a phone screenshot gets the device's own
+   rounded corners, so it reads as a phone rather than a card. */
 .phone .shot img { border-radius: 22px; border-width: 6px; border-color: var(--surface-2); }
 .phone .command { margin-top: 24px; }
 .alert-line { margin-top: 26px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: .9375rem; }
@@ -159,7 +161,7 @@ code, pre, kbd { font-family: var(--mono); }
 .label-row { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; padding: 16px 22px; border-top: 1px solid var(--border); }
 .label-row:first-child { border-top: 0; }
 .label-row dt { color: var(--muted); font-size: .9375rem; }
-.label-row dd { margin: 0; font-size: 1rem; }
+.label-row dd { margin: 0; font-size: 1rem; text-wrap: pretty; }
 .label-row dd .figure { font: 500 1.25rem/1.3 var(--mono); }
 .label-head { display: flex; align-items: center; gap: 16px; padding: 16px 22px; border-bottom: 1px solid var(--rule); }
 .label-head .muted { font-size: .875rem; }

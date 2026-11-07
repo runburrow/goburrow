@@ -39,6 +39,8 @@ func main() {
 		baseURL   = flag.String("base-url", env("BURROW_BASE_URL", ""), "public URL, used in DSNs and links (BURROW_BASE_URL); defaults to http://localhost<addr>")
 		retention = flag.Int("retention-days", atoi(env("BURROW_RETENTION_DAYS", "30")), "delete events older than this many days, 0 = keep forever (BURROW_RETENTION_DAYS)")
 		webhook   = flag.String("webhook-url", env("BURROW_WEBHOOK_URL", ""), "fallback webhook for projects with none set in their settings: Slack, Discord or custom (BURROW_WEBHOOK_URL)")
+		rateLimit = flag.Int("rate-limit", atoi(env("BURROW_RATE_LIMIT", "3000")), "events per minute each project may send, 0 = no limit (BURROW_RATE_LIMIT)")
+		proxy     = flag.Bool("behind-proxy", env("BURROW_BEHIND_PROXY", "") == "true", "trust the last X-Forwarded-For entry as the client address, for login throttling behind a reverse proxy (BURROW_BEHIND_PROXY=true)")
 		whPrivate = flag.Bool("webhook-allow-private", env("BURROW_WEBHOOK_ALLOW_PRIVATE", "") == "true", "allow webhooks on private/LAN addresses, which are refused by default (BURROW_WEBHOOK_ALLOW_PRIVATE=true)")
 		showVer   = flag.Bool("version", false, "print version and exit")
 	)
@@ -49,7 +51,8 @@ func main() {
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	if err := run(log, *addr, *dbPath, *baseURL, *retention, *webhook, *whPrivate); err != nil {
+	if err := run(log, config{addr: *addr, dbPath: *dbPath, baseURL: *baseURL, retentionDays: *retention, rateLimit: *rateLimit,
+		webhookURL: *webhook, webhookAllowPrivate: *whPrivate, behindProxy: *proxy}); err != nil {
 		log.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -63,7 +66,18 @@ func atoi(s string) int {
 	return n
 }
 
-func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhookURL string, webhookAllowPrivate bool) error {
+// config is the server's settings, from flags or environment variables.
+type config struct {
+	addr, dbPath, baseURL string
+	retentionDays         int
+	rateLimit             int // events per minute per project; 0 = off
+	webhookURL            string
+	webhookAllowPrivate   bool
+	behindProxy           bool
+}
+
+func run(log *slog.Logger, c config) error {
+	addr, base := c.addr, c.baseURL
 	if base == "" {
 		host := addr
 		if strings.HasPrefix(host, ":") {
@@ -76,7 +90,7 @@ func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhook
 		return fmt.Errorf("invalid base URL %q: want e.g. https://burrow.example.com", base)
 	}
 
-	st, err := store.Open(dbPath)
+	st, err := store.Open(c.dbPath)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -84,14 +98,14 @@ func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhook
 
 	// Per-project webhooks live in the database; webhookURL is the fallback
 	// for projects that have none.
-	if webhookURL != "" {
-		if err := notify.CheckURL(webhookURL, webhookAllowPrivate); err != nil {
+	if c.webhookURL != "" {
+		if err := notify.CheckURL(c.webhookURL, c.webhookAllowPrivate); err != nil {
 			return fmt.Errorf("webhook URL: %w (set BURROW_WEBHOOK_ALLOW_PRIVATE=true for a LAN address)", err)
 		}
 	}
-	alerts := notify.NewDispatcher(st, webhookURL, bu.String(), webhookAllowPrivate, log)
-	ing := &ingest.Handler{Store: st, Log: log, Notifier: alerts}
-	srv := &web.Server{Store: st, Ingest: ing, Notify: alerts, Log: log, BaseURL: bu, Version: version}
+	alerts := notify.NewDispatcher(st, c.webhookURL, bu.String(), c.webhookAllowPrivate, log)
+	ing := &ingest.Handler{Store: st, Log: log, Notifier: alerts, Limit: ingest.NewRateLimiter(c.rateLimit)}
+	srv := &web.Server{Store: st, Ingest: ing, Notify: alerts, Log: log, BaseURL: bu, Version: version, BehindProxy: c.behindProxy}
 	h, err := srv.Handler()
 	if err != nil {
 		return err
@@ -99,7 +113,7 @@ func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhook
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	go maintenance(ctx, log, st, retentionDays)
+	go maintenance(ctx, log, st, c.retentionDays)
 
 	hs := &http.Server{
 		Addr:              addr,
@@ -111,7 +125,7 @@ func run(log *slog.Logger, addr, dbPath, base string, retentionDays int, webhook
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- hs.ListenAndServe() }()
-	log.Info("burrow listening", "addr", addr, "base_url", bu.String(), "db", dbPath, "version", version)
+	log.Info("burrow listening", "addr", addr, "base_url", bu.String(), "db", c.dbPath, "version", version)
 
 	select {
 	case err := <-errc:

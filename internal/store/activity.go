@@ -10,8 +10,6 @@ import (
 // oldest first, ending with today.
 const ActivityDays = 14
 
-const msPerDay = 24 * 60 * 60 * 1000
-
 // maxIDsPerQuery bounds the IN (...) list so we never approach SQLite's
 // bound-variable limit. A page of issues (<=200) is always a single query.
 const maxIDsPerQuery = 500

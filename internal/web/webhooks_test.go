@@ -83,18 +83,42 @@ func TestRobloxSettingsShowReportSnippet(t *testing.T) {
 	reportURL := h.ts.URL + "/api/" + strconv.FormatInt(id, 10) + "/report"
 	for _, want := range []string{
 		"Roblox (Luau) setup", "ScriptContext.Error", "BurrowClientError", "Allow HTTP Requests",
-		`local URL = "` + reportURL + `"`, `local KEY = "` + key + `"`,
+		`local URL = &#34;` + reportURL + `&#34;`, `local KEY = &#34;` + key + `&#34;`,
 		`id="report-url">` + reportURL + `<`,
+		// The test server is on loopback http, which Roblox can't reach.
+		"Roblox servers can&#39;t reach <code>",
+		`href="/projects/obby/setup/Burrow.lua" download`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("settings page missing %q", want)
 		}
 	}
+	// The module downloads as a file with the URL and key filled in.
+	resp, err := h.client.Get(h.ts.URL + "/projects/obby/setup/Burrow.lua")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Disposition"), "Burrow.lua") || !strings.Contains(string(b), `local KEY = "`+key+`"`) {
+		t.Errorf("download: %d %q", resp.StatusCode, resp.Header.Get("Content-Disposition"))
+	}
+	if code, _ := h.get("/projects/obby/setup/other.lua"); code != http.StatusNotFound {
+		t.Errorf("unknown download: %d", code)
+	}
+	// Roblox leads with its setup; the DSN comes after the report API.
+	if strings.Index(body, `id="setup-heading"`) > strings.Index(body, `id="dsn-heading"`) || strings.Index(body, `id="report-heading"`) > strings.Index(body, `id="dsn-heading"`) {
+		t.Error("Roblox settings should put setup and the report API before the DSN")
+	}
+
 	// Other platforms keep their SDK snippet and still get the report API.
 	h2, settings2, _, _ := settingsHarness(t, "python")
 	_, body2 := h2.get(settings2)
 	if strings.Contains(body2, "ScriptContext") || !strings.Contains(body2, "sentry_sdk.init") || !strings.Contains(body2, "Report API") {
 		t.Error("python settings should show the Sentry snippet and the report API, not Roblox")
+	}
+	if strings.Index(body2, `id="dsn-heading"`) > strings.Index(body2, `id="setup-heading"`) {
+		t.Error("SDK settings should lead with the DSN")
 	}
 }
 

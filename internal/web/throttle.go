@@ -27,13 +27,23 @@ func newLoginThrottle(now func() time.Time) *loginThrottle {
 	return &loginThrottle{failures: map[string][]time.Time{}, now: now}
 }
 
-// keys returns the throttle keys for a request: the client address and the
-// email being tried. Only RemoteAddr is used, so a reverse proxy makes every
-// client share one address; the email key still limits guessing per account.
-func throttleKeys(r *http.Request, email string) []string {
+// throttleKeys returns the throttle keys for a request: the client address
+// and the email being tried. Behind a reverse proxy the connection always
+// comes from the proxy, so with behindProxy the address is the last
+// X-Forwarded-For entry: the one the proxy itself appended, which a client
+// can't forge (entries before it can be).
+func throttleKeys(r *http.Request, email string, behindProxy bool) []string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
+	}
+	if behindProxy {
+		if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+			parts := strings.Split(xff[len(xff)-1], ",")
+			if last := strings.TrimSpace(parts[len(parts)-1]); last != "" {
+				host = last
+			}
+		}
 	}
 	keys := []string{"ip:" + host}
 	if e := strings.ToLower(strings.TrimSpace(email)); e != "" {

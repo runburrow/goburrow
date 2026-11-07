@@ -193,8 +193,9 @@
     <ol class="recent">
       {{range .Data.Recent}}
       <li>
-        <a href="/issues/{{$i.ID}}?event={{.ID}}"><time datetime="{{isodate .ReceivedAt}}" title="{{datetime .ReceivedAt}}">{{ago .ReceivedAt}}</time></a>
-        <span class="muted">{{.Environment}}{{if and .Environment .Release}} · {{end}}{{.Release}}</span>
+        {{/* Where the event came from tells events apart; when is secondary. */}}
+        <a href="/issues/{{$i.ID}}?event={{.ID}}">{{if or .Environment .Release}}{{.Environment}}{{if and .Environment .Release}} · {{end}}{{.Release}}{{else}}Event{{end}}</a>
+        <time class="muted" datetime="{{isodate .ReceivedAt}}" title="{{datetime .ReceivedAt}}">{{ago .ReceivedAt}}</time>
         {{if ne (printf "%s" .Level) (printf "%s" $i.Level)}}<span class="level-label level-{{.Level}}">{{.Level}}</span>{{end}}
       </li>
       {{end}}

@@ -125,6 +125,11 @@ var migrations = []string{
 		created_at    INTEGER NOT NULL
 	);
 	CREATE INDEX webhooks_by_project ON webhooks(project_id, id);`,
+
+	// 5: session tokens are now stored as SHA-256 hashes, so a copy of the
+	// database can't be used to log in. Existing sessions can't be
+	// converted, so everyone logs in once more.
+	`DELETE FROM sessions;`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {

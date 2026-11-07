@@ -39,7 +39,10 @@ type Server struct {
 	Log     *slog.Logger
 	BaseURL *url.URL // public URL, used to build DSNs and secure cookies
 	Version string
-	Now     func() time.Time // optional clock override for tests
+	// BehindProxy makes login throttling key on the client address the
+	// reverse proxy appended to X-Forwarded-For instead of the proxy's own.
+	BehindProxy bool
+	Now         func() time.Time // optional clock override for tests
 
 	pages    map[string]*template.Template
 	assetTag string // hash of the static files, busts browser caches on every change
@@ -78,6 +81,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /projects/new", s.authed(s.projectCreate))
 	mux.HandleFunc("GET /projects/{slug}", s.authed(s.issueList))
 	mux.HandleFunc("GET /projects/{slug}/settings", s.authed(s.projectSettings))
+	mux.HandleFunc("GET /projects/{slug}/setup/{file}", s.authed(s.projectSetupDownload))
 	mux.HandleFunc("POST /projects/{slug}/test-event", s.authed(s.projectTestEvent))
 	mux.HandleFunc("POST /projects/{slug}/rotate-key", s.authed(s.projectRotateKey))
 	mux.HandleFunc("POST /projects/{slug}/delete", s.authed(s.projectDelete))
@@ -88,6 +92,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /issues/{id}/status", s.authed(s.issueSetStatus))
 	mux.HandleFunc("POST /issues/{id}/delete", s.authed(s.issueDelete))
 	mux.HandleFunc("POST /projects/{slug}/issues/status", s.authed(s.issueBulkStatus))
+	mux.HandleFunc("POST /projects/{slug}/issues/restore", s.authed(s.issueBulkRestore))
 	mux.HandleFunc("/", s.withSession(s.notFound)) // unknown routes get the designed 404, not net/http's plain text
 
 	return s.securityHeaders(mux), nil

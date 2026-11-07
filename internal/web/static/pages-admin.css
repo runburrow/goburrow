@@ -18,8 +18,18 @@
 .panel .code-scroll { margin-bottom: 12px; border-radius: var(--radius); }
 .danger-zone h2 { color: var(--red-text); }
 .panel .copybox + .copybox { margin-top: -6px; }
+/* Setup steps: the heading and its Copy/Download actions share one line, so
+   the button is found where the step is read, not below a long block. */
+.step-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 20px 0 8px; }
+.step-head .snippet-title { margin: 0; }
+.step-actions { display: flex; align-items: center; gap: 8px; }
 .snippet-title { margin: 20px 0 8px; font-size: var(--fs-3); font-weight: 600; }
-.snippet-copy { margin: -4px 0 8px; }
+.step-help { margin: -2px 0 8px; }
+/* Long code scrolls in place (about 24 lines) instead of pushing the rest
+   of the page down; Copy and Download still take all of it. */
+.code-scroll.is-tall { max-height: 28rem; overflow: auto; border: 1px solid var(--border); }
+.code-scroll.is-tall pre.code { border: 0; border-radius: 0; overflow: visible; }
+.code-scroll.is-tall:focus-visible { outline-offset: 2px; }
 
 /* Webhooks --------------------------------------------------------------- */
 .webhook-list { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--border); }
@@ -27,7 +37,7 @@
 .webhook-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .webhook-url { overflow-wrap: anywhere; }
 .webhook-actions { display: flex; align-items: center; gap: 8px; flex: none; }
-.webhook-empty { margin: 12px 0 0; padding: 12px 14px; border: 1px dashed var(--border); border-radius: var(--radius); color: var(--muted); }
+.webhook-empty { margin: 12px 0 0; padding: 12px 14px; border: 1px dashed var(--rule); border-radius: var(--radius); color: var(--muted); }
 .webhook-form { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; max-width: 640px; margin-top: 20px; }
 .webhook-form > label { align-self: stretch; display: flex; flex-direction: column; gap: 6px; font-weight: 500; }
 .webhook-triggers { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0; padding: 0; border: 0; }

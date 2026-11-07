@@ -21,7 +21,21 @@
   </form>
 </div>
 {{end}}
-{{with .Data.BulkN}}<p class="alert ok" role="status">Marked {{.}} {{plural . "issue" "issues"}} {{$.Data.BulkTo}}.</p>{{end}}
+{{with .Data.BulkN}}
+<div class="alert ok flash-undo" role="status">
+  <span>Marked {{.}} {{plural . "issue" "issues"}} {{$.Data.BulkTo}}.</span>
+  {{if $.Data.BulkUndo}}
+  <form method="post" action="/projects/{{$p.Slug}}/issues/restore" class="inline">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="to" value="{{$.Data.BulkTo}}">
+    <input type="hidden" name="back" value="{{$.Data.ListURL}}">
+    {{range $.Data.BulkUndo}}<input type="hidden" name="was" value="{{.}}">{{end}}
+    <button type="submit" class="link">Undo</button>
+  </form>
+  {{end}}
+</div>
+{{end}}
+{{if eq .Flash "bulk-restored"}}{{if .Data.Restored}}<p class="alert ok" role="status">Restored {{.Data.Restored}} {{plural .Data.Restored "issue" "issues"}} to how {{plural .Data.Restored "it was" "they were"}}.</p>{{else}}<p class="alert" role="status">Nothing to undo: those issues have changed since.</p>{{end}}{{end}}
 {{if eq .Flash "bulk-none"}}<p class="alert error" role="alert">No issues were selected. Tick the box next to each issue first.</p>{{end}}
 
 {{if or .Data.Total .Data.Query}}

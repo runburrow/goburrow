@@ -16,6 +16,12 @@ import (
 
 func reportServer(t *testing.T) (*httptest.Server, *store.Store, *store.Project) {
 	t.Helper()
+	ts, st, p, _ := reportServerWithHandler(t)
+	return ts, st, p
+}
+
+func reportServerWithHandler(t *testing.T) (*httptest.Server, *store.Store, *store.Project, *Handler) {
+	t.Helper()
 	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -26,10 +32,11 @@ func reportServer(t *testing.T) (*httptest.Server, *store.Store, *store.Project)
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	(&Handler{Store: st, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}).Register(mux)
+	h := &Handler{Store: st, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	h.Register(mux)
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
-	return ts, st, p
+	return ts, st, p, h
 }
 
 func postReport(t *testing.T, url, key, body string) (int, string) {

@@ -135,12 +135,13 @@ err := sentry.Init(sentry.ClientOptions{
 	<span class="dsn">Dsn: "https://&lt;key&gt;@burrow.lan/1",</span>
 })
 defer sentry.Flush(2 * time.Second)</pre>
-      <pre class="code" id="sdk-roblox" role="tabpanel" aria-labelledby="tab-roblox" hidden><span class="c">-- Script in ServerScriptService. The version in project
--- settings also batches and relays errors from players.</span>
+      <pre class="code" id="sdk-roblox" role="tabpanel" aria-labelledby="tab-roblox" hidden><span class="c">-- The idea in a few lines: one request per error. For a live
+-- game use the module in project settings, which batches to stay
+-- inside Roblox's HTTP limits and relays errors from players.</span>
 local HttpService = game:GetService("HttpService")
 
 game:GetService("ScriptContext").Error:Connect(function(message, stack)
-  HttpService:RequestAsync({
+  pcall(HttpService.RequestAsync, HttpService, {
     <span class="dsn">Url = "https://burrow.example.com/api/1/report",</span>
     Method = "POST",
     Headers = { ["X-Burrow-Key"] = "&lt;key&gt;", ["Content-Type"] = "application/json" },
@@ -200,8 +201,8 @@ end)</pre>
       <div class="label-row"><dt>Memory</dt><dd><span class="figure">~15 MB idle</span><br><span class="muted">Under 30 MB while taking 1,700 events a second on one CPU core.</span></dd></div>
       <div class="label-row"><dt>Stores data in</dt><dd><span class="figure">1 SQLite file</span><br><span class="muted">About 5 KB per event. Old events are pruned after 30 days by default.</span></dd></div>
       <div class="label-row"><dt>Also needs</dt><dd><span class="figure">Nothing</span><br><span class="muted">No Redis, Kafka, ClickHouse, or separate database server.</span></dd></div>
-      <div class="label-row"><dt>Security defaults</dt><dd>bcrypt passwords, CSRF tokens, a strict Content Security Policy, SameSite cookies.</dd></div>
-      <div class="label-row"><dt>License</dt><dd>MIT</dd></div>
+      <div class="label-row"><dt>Security</dt><dd><span class="figure">On by default</span><br><span class="muted">bcrypt passwords, login throttling, CSRF tokens, a strict Content Security Policy, HSTS, rate-limited ingestion.</span></dd></div>
+      <div class="label-row"><dt>License</dt><dd><span class="figure">MIT</span><br><span class="muted">Use it anywhere, including commercially.</span></dd></div>
       </dl>
     </div>
     <p class="not-yet">Not built yet, and on the roadmap: multiple users, source maps, tag facets, email alerts, release tracking. Burrow doesn't do session replay or performance tracing; it accepts that data and drops it.</p>

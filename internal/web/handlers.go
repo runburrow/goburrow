@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -82,10 +83,9 @@ func (s *Server) setupPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
-	// Only the very first account can be created this way. There's a small
-	// race if two people submit setup simultaneously; the UNIQUE email and
-	// the count check make the worst case "two admins", which is acceptable
-	// for a first-run screen.
+	// Only the very first account can be created this way; CreateFirstUser
+	// re-checks inside its transaction, so simultaneous submissions can't
+	// both win.
 	if n, err := s.Store.UserCount(r.Context()); err != nil {
 		s.serverError(w, r, err)
 		return
@@ -98,8 +98,11 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, http.StatusBadRequest, "setup", "Welcome to Burrow", map[string]string{"Error": "Passwords don't match.", "Email": email})
 		return
 	}
-	u, err := s.Store.CreateUser(r.Context(), email, pw)
-	if err != nil {
+	u, err := s.Store.CreateFirstUser(r.Context(), email, pw)
+	if errors.Is(err, store.ErrSetupDone) {
+		http.Error(w, "setup already completed", http.StatusForbidden)
+		return
+	} else if err != nil {
 		s.render(w, r, http.StatusBadRequest, "setup", "Welcome to Burrow", map[string]string{"Error": err.Error(), "Email": email})
 		return
 	}
@@ -123,7 +126,7 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	email := r.PostFormValue("email")
 	next := r.PostFormValue("next")
-	keys := throttleKeys(r, email)
+	keys := throttleKeys(r, email, s.BehindProxy)
 	if blocked, wait := s.throttle.blocked(keys); blocked {
 		mins := int(math.Ceil(wait.Minutes()))
 		if mins < 1 {
@@ -210,14 +213,14 @@ func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) projectNewPage(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, http.StatusOK, "project_new", "New project", map[string]any{"Platforms": platforms})
+	s.render(w, r, http.StatusOK, "project_new", "New project", map[string]any{"Groups": platformGroups})
 }
 
 func (s *Server) projectCreate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	platform := r.PostFormValue("platform")
 	if name == "" || len(name) > 100 {
-		s.render(w, r, http.StatusBadRequest, "project_new", "New project", map[string]any{"Platforms": platforms, "Error": "Name is required (max 100 characters)."})
+		s.render(w, r, http.StatusBadRequest, "project_new", "New project", map[string]any{"Groups": platformGroups, "Error": "Name is required (max 100 characters)."})
 		return
 	}
 	p, err := s.Store.CreateProject(r.Context(), name, platform)
@@ -252,17 +255,90 @@ func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	setup := setupFor(p.Platform, s.DSN(p), s.ReportURL(p), p.PublicKey)
 	s.render(w, r, http.StatusOK, "project_settings", p.Name+" · Settings", map[string]any{
 		"Project":      p,
 		"DSN":          s.DSN(p),
 		"ReportURL":    s.ReportURL(p),
-		"Setup":        setupFor(p.Platform, s.DSN(p), s.ReportURL(p), p.PublicKey),
+		"Setup":        setup,
+		"Reach":        reachWarning(s.BaseURL, setup.Reach, platformName(p.Platform)),
 		"PlatformName": platformName(p.Platform),
 		"Webhooks":     hooks,
 		"MaxWebhooks":  store.MaxWebhooksPerProject,
 		"Fallback":     s.Notify != nil && s.Notify.FallbackURL != "",
 		"TestResult":   testResultMessage(r.URL.Query().Get("result")),
 	})
+}
+
+// projectSetupDownload serves a setup step as a file, for code too long to
+// copy comfortably (the Roblox module).
+func (s *Server) projectSetupDownload(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.loadProject(w, r)
+	if !ok {
+		return
+	}
+	for _, st := range setupFor(p.Platform, s.DSN(p), s.ReportURL(p), p.PublicKey).Steps {
+		if st.Download != "" && st.Download == r.PathValue("file") {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("Content-Disposition", `attachment; filename="`+st.Download+`"`)
+			w.Header().Set("Cache-Control", "no-store") // it contains the project key
+			_, _ = w.Write([]byte(st.Code))
+			return
+		}
+	}
+	s.notFound(w, r)
+}
+
+// reachWarning checks the server's public address against where a
+// platform's code runs, so a setup that can't work says so on the page
+// instead of failing silently. It returns nil when there's nothing to say.
+func reachWarning(base *url.URL, reach, platform string) map[string]any {
+	if base == nil {
+		return nil
+	}
+	addr := base.Scheme + "://" + base.Host
+	platform, _, _ = strings.Cut(platform, " (") // "Roblox (Luau)" reads as "Roblox"
+	public, https := isPublicHost(base.Hostname()), base.Scheme == "https"
+	switch reach {
+	case "public":
+		if public && https {
+			return nil
+		}
+		return map[string]any{"Error": true, "Text": fmt.Sprintf("%s servers can't reach `%s`. They only connect to public https:// addresses, so nothing will arrive. Deploy Burrow at one, set `BURROW_BASE_URL` to it and restart; the code on this page updates to match.", platform, addr)}
+	case "https":
+		if https {
+			return nil
+		}
+		return map[string]any{"Text": fmt.Sprintf("Released apps block plain-HTTP requests, so `%s` will only work in development builds. Set `BURROW_BASE_URL` to an https:// address before you ship.", addr)}
+	}
+	if h := base.Hostname(); h == "localhost" || isLoopback(h) {
+		return map[string]any{"Text": fmt.Sprintf("`%s` only works from this machine. If your app runs anywhere else, set `BURROW_BASE_URL` to the address it can reach and restart; the code on this page updates to match.", addr)}
+	}
+	return nil
+}
+
+// isPublicHost reports whether host looks reachable from the internet: a
+// public IP, or a dotted name that isn't a local-only suffix.
+func isPublicHost(host string) bool {
+	if ip := net.ParseIP(host); ip != nil {
+		return !(ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() ||
+			(ip.To4() != nil && ip.To4()[0] == 100 && ip.To4()[1]&0xc0 == 64))
+	}
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if !strings.Contains(host, ".") {
+		return false // "localhost", "nas", other single-label LAN names
+	}
+	for _, suffix := range []string{".local", ".lan", ".home", ".internal", ".localhost", ".test", ".home.arpa"} {
+		if strings.HasSuffix(host, suffix) {
+			return false
+		}
+	}
+	return true
+}
+
+func isLoopback(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // --------------------------------------------------------------- webhooks
@@ -569,7 +645,19 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 		if n, _ := strconv.Atoi(q.Get("n")); n > 0 {
 			data["BulkN"] = n
 			data["BulkTo"] = q.Get("to")
+			// Offer Undo for the issues still where the bulk action put them.
+			to := store.IssueStatus(q.Get("to"))
+			var undo []string
+			for id, prev := range parseWas(q["was"]) {
+				if is, err := s.Store.IssueByID(r.Context(), id); err == nil && is.ProjectID == p.ID && is.Status == to {
+					undo = append(undo, fmt.Sprintf("%d.%s", id, prev))
+				}
+			}
+			data["BulkUndo"] = undo
 		}
+	case "bulk-restored":
+		n, _ := strconv.Atoi(q.Get("n"))
+		data["Restored"] = n
 	}
 	if page > 1 {
 		data["PrevURL"] = pageURL(page - 1)
@@ -739,6 +827,7 @@ func (s *Server) issueBulkStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n := 0
+	var was []string // "id.previous-status" for each issue that changed, for undo
 	for _, raw := range r.PostForm["id"] {
 		id, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
@@ -756,25 +845,87 @@ func (s *Server) issueBulkStatus(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		n++
+		if issue.Status != st && len(was) < maxBulkUndo {
+			was = append(was, fmt.Sprintf("%d.%s", id, issue.Status))
+		}
 	}
-	base := "/projects/" + p.Slug
-	back, err := url.Parse(safeNext(r.PostFormValue("back")))
-	if err != nil || back.Path != base {
-		back = &url.URL{Path: base}
-	}
-	v := back.Query()
-	for _, k := range []string{"flash", "n", "to", "issue", "undo", "page"} {
-		v.Del(k)
-	}
+	v := url.Values{}
 	if n == 0 {
 		v.Set("flash", "bulk-none")
 	} else {
 		v.Set("flash", "bulk")
 		v.Set("n", strconv.Itoa(n))
 		v.Set("to", string(st))
+		v["was"] = was
 	}
-	back.RawQuery = v.Encode()
-	http.Redirect(w, r, back.String(), http.StatusSeeOther)
+	http.Redirect(w, r, bulkBack(r, p, v), http.StatusSeeOther)
+}
+
+// maxBulkUndo caps how many issues one Undo can restore; the list shows
+// 50 per page, so a whole page always fits.
+const maxBulkUndo = 100
+
+// bulkBack is the issue list URL to return to after a bulk action: the
+// list the form came from (its filters and tab), with v's flash fields.
+func bulkBack(r *http.Request, p *store.Project, v url.Values) string {
+	base := "/projects/" + p.Slug
+	back, err := url.Parse(safeNext(r.PostFormValue("back")))
+	if err != nil || back.Path != base {
+		back = &url.URL{Path: base}
+	}
+	q := back.Query()
+	for _, k := range []string{"flash", "n", "to", "issue", "undo", "page", "was"} {
+		q.Del(k)
+	}
+	for k, vals := range v {
+		q[k] = vals
+	}
+	back.RawQuery = q.Encode()
+	return back.String()
+}
+
+// parseWas reads "id.status" pairs from a bulk flash or undo form.
+func parseWas(raw []string) map[int64]store.IssueStatus {
+	out := map[int64]store.IssueStatus{}
+	for _, pair := range raw {
+		idStr, st, ok := strings.Cut(pair, ".")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if ok && err == nil && store.IssueStatus(st).Valid() && len(out) < maxBulkUndo {
+			out[id] = store.IssueStatus(st)
+		}
+	}
+	return out
+}
+
+// issueBulkRestore undoes a bulk status change: each issue goes back to its
+// previous status, but only if it's still in the status the bulk action
+// set, so a stale or replayed Undo can't overwrite later triage.
+func (s *Server) issueBulkRestore(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.loadProject(w, r)
+	if !ok {
+		return
+	}
+	to := store.IssueStatus(r.PostFormValue("to"))
+	if !to.Valid() {
+		http.Error(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+	n := 0
+	for id, prev := range parseWas(r.PostForm["was"]) {
+		issue, err := s.Store.IssueByID(r.Context(), id)
+		if errors.Is(err, store.ErrNotFound) || (err == nil && (issue.ProjectID != p.ID || issue.Status != to)) {
+			continue
+		} else if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		if err := s.Store.SetIssueStatus(r.Context(), id, prev); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		n++
+	}
+	http.Redirect(w, r, bulkBack(r, p, url.Values{"flash": {"bulk-restored"}, "n": {strconv.Itoa(n)}}), http.StatusSeeOther)
 }
 
 // sampleEvent is what "Send test event" ingests: realistic enough to show

@@ -49,3 +49,15 @@ func TestLoginThrottleWindowExpires(t *testing.T) {
 		t.Fatal("success should clear failures")
 	}
 }
+
+func TestThrottleKeysBehindProxy(t *testing.T) {
+	r, _ := http.NewRequest("POST", "/login", nil)
+	r.RemoteAddr = "10.0.0.2:5555"                          // the proxy
+	r.Header.Add("X-Forwarded-For", "6.6.6.6, 203.0.113.7") // first entry is client-forged
+	if got := throttleKeys(r, "", false)[0]; got != "ip:10.0.0.2" {
+		t.Errorf("without behindProxy: %s", got)
+	}
+	if got := throttleKeys(r, "", true)[0]; got != "ip:203.0.113.7" {
+		t.Errorf("behindProxy should use the entry the proxy appended: %s", got)
+	}
+}

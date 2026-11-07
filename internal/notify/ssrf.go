@@ -54,10 +54,6 @@ func CheckURL(u string, allowPrivate bool) error {
 	return nil
 }
 
-// ValidURL is CheckURL without the private-network rule, for callers that
-// only need the shape checked.
-func ValidURL(u string) bool { return CheckURL(u, true) == nil }
-
 func isPrivate(ip net.IP) bool {
 	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
 		ip.IsUnspecified() || ip.IsMulticast() || ip.Equal(net.IPv4bcast) ||

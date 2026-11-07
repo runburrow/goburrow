@@ -15,6 +15,7 @@ import (
 )
 
 var funcs = template.FuncMap{
+	"inlineCode":      inlineCode,
 	"ago":             ago,
 	"datetime":        func(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05 UTC") },
 	"isodate":         func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
@@ -270,4 +271,22 @@ func activitySummary(v any) string {
 		evWord = "event"
 	}
 	return fmt.Sprintf("%d %s in the last %d days, peak %d on day %02d", total, evWord, days, peak, peakDay)
+}
+
+// inlineCode renders `backticked` spans of fixed help text as <code>. The
+// whole string is escaped first, so it is safe for any input.
+func inlineCode(s string) template.HTML {
+	parts := strings.Split(template.HTMLEscapeString(s), "`")
+	var b strings.Builder
+	for i, p := range parts {
+		if i%2 == 1 && i < len(parts)-1 {
+			b.WriteString("<code>" + p + "</code>")
+		} else {
+			if i%2 == 1 {
+				b.WriteString("`")
+			}
+			b.WriteString(p)
+		}
+	}
+	return template.HTML(b.String())
 }

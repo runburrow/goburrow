@@ -283,7 +283,7 @@ Flat by default. Depth comes from tonal steps (`ground` to `surface` to `surface
 
 ## Shapes
 
-Small, square-shouldered geometry. Controls, inputs, pills, chips, copyboxes, code blocks and frames take a 4px corner (`rounded.sm`). Larger framed containers (the shortcuts dialog, the Persuade stream, the spec label, screenshots) take 6px (`rounded.lg`). Every line is 1px; the only 2px lines are the focus ring and the active tab underline. Disclosure chevrons are drawn as 7px bordered corners rotated 45 degrees, not glyphs.
+Small, square-shouldered geometry. Controls, inputs, pills, chips, copyboxes, code blocks and frames take a 4px corner (`rounded.sm`). Larger framed containers (the shortcuts dialog, the Persuade stream, the spec label, screenshots) take 6px (`rounded.lg`). The one exception is the phone screenshot on the landing page, which takes a 22px device corner so it reads as a phone. Every line is 1px; the only 2px lines are the focus ring and the active tab underline. Disclosure chevrons are drawn as 7px bordered corners rotated 45 degrees, not glyphs.
 
 ### Level Glyphs
 Each level is a 9px shape before its label, drawn with a 1.5px `currentColor` border, so severity reads without colour (and in forced-colours mode):

@@ -36,7 +36,8 @@ type Notifier interface {
 type Handler struct {
 	Store    *store.Store
 	Log      *slog.Logger
-	Notifier Notifier // optional
+	Notifier Notifier     // optional
+	Limit    *RateLimiter // optional per-project events-per-minute cap
 	Now      func() time.Time
 }
 
@@ -95,6 +96,15 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 		h.authError(w, err)
 		return
 	}
+	events := 0
+	for _, item := range env.Items {
+		if item.Type == "event" {
+			events++
+		}
+	}
+	if !h.allow(w, project, events) {
+		return
+	}
 
 	var lastID string
 	for _, item := range env.Items {
@@ -128,6 +138,9 @@ func (h *Handler) store(w http.ResponseWriter, r *http.Request) {
 	project, err := h.authenticate(r, "")
 	if err != nil {
 		h.authError(w, err)
+		return
+	}
+	if !h.allow(w, project, 1) {
 		return
 	}
 	id, err := h.ingestEvent(r.Context(), project, body)
@@ -169,6 +182,20 @@ var (
 	errNoReportKey = errors.New("missing project key: send it in the X-Burrow-Key header")
 	errBadProject  = errors.New("invalid project or key")
 )
+
+// allow applies the rate limit. Over the limit it answers 429 with the
+// headers the Sentry SDKs read to back off, and returns false.
+func (h *Handler) allow(w http.ResponseWriter, project *store.Project, events int) bool {
+	ok, wait := h.Limit.Allow(project.ID, events)
+	if ok {
+		return true
+	}
+	secs := int(wait/time.Second) + 1
+	w.Header().Set("Retry-After", strconv.Itoa(secs))
+	w.Header().Set("X-Sentry-Rate-Limits", fmt.Sprintf("%d::key", secs))
+	apiError(w, http.StatusTooManyRequests, fmt.Sprintf("rate limit: this project accepts %d events a minute; retry in %ds", h.Limit.PerMinute, secs))
+	return false
+}
 
 func (h *Handler) authError(w http.ResponseWriter, err error) {
 	if errors.Is(err, errNoKey) || errors.Is(err, errNoReportKey) || errors.Is(err, errBadProject) {
