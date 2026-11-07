@@ -105,7 +105,7 @@ func (d *Dispatcher) IssueEvent(ctx context.Context, p *store.Project, issueID i
 	pl.Burrow.Environment = ev.Environment
 	pl.Burrow.Release = ev.Release
 	pl.Burrow.URL = fmt.Sprintf("%s/issues/%d", d.BaseURL, issueID)
-	pl.Text = fmt.Sprintf("🦡 %s in %s: %s\n%s", verb, p.Name, pl.Burrow.Title, pl.Burrow.URL)
+	pl.Text = fmt.Sprintf("🦊 %s in %s: %s\n%s", verb, p.Name, pl.Burrow.Title, pl.Burrow.URL)
 	pl.Content = pl.Text
 	body, _ := json.Marshal(pl)
 
@@ -137,7 +137,7 @@ func (d *Dispatcher) Test(ctx context.Context, p *store.Project, u string) error
 	pl.Burrow.Project = p.Slug
 	pl.Burrow.Title = "Test alert"
 	pl.Burrow.URL = fmt.Sprintf("%s/projects/%s", d.BaseURL, p.Slug)
-	pl.Text = fmt.Sprintf("🦡 Test alert from Burrow for %s. New issues and regressions will look like this.\n%s", p.Name, pl.Burrow.URL)
+	pl.Text = fmt.Sprintf("🦊 Test alert from Burrow for %s. New issues and regressions will look like this.\n%s", p.Name, pl.Burrow.URL)
 	pl.Content = pl.Text
 	body, _ := json.Marshal(pl)
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

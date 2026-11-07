@@ -35,6 +35,7 @@ var funcs = template.FuncMap{
 	"dayLabels":       dayLabels,
 	"trackNumber":     trackNumber,
 	"comma":           comma,
+	"platformName":    platformName,
 	"activitySummary": activitySummary,
 	"seq": func(n int) []int {
 		s := make([]int, n)

@@ -19,7 +19,7 @@
   <div class="track-row project-row">
     <span class="track-main">
       <a class="track-title row-link" href="/projects/{{.Slug}}">{{.Name}}</a>
-      <span class="track-culprit">{{if .Platform}}{{.Platform}}{{else}}other{{end}}</span>
+      <span class="track-culprit">{{platformName .Platform}}</span>
     </span>
     <span class="track-activity">
       <span class="barcode" role="img" aria-label="Last 14 days: {{.ActivitySummary}}">

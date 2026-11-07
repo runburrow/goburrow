@@ -1,6 +1,6 @@
 # Contributing to Burrow
 
-Thanks for digging in! 🦡
+Thanks for digging in! 🦊
 
 ## Ground rules
 - **Keep it boring.** The stack is stdlib Go plus pure-Go SQLite, with server-rendered templates.

@@ -18,7 +18,7 @@
       <select id="project-platform" name="platform" aria-describedby="project-platform-help">
         {{range .Data.Platforms}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
       </select>
-      <span class="help" id="project-platform-help">Picks the setup snippet on the settings page. Any Sentry SDK works, and so does plain HTTP.</span>
+      <span class="help" id="project-platform-help">Picks the setup steps on the settings page. Any Sentry SDK works, and so does plain HTTP.</span>
     </label>
     <div class="form-actions">
       <button class="primary" type="submit">Create project</button>

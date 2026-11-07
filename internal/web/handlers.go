@@ -196,20 +196,6 @@ func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "projects", "Projects", views)
 }
 
-var platforms = []struct{ ID, Name string }{
-	{"javascript", "JavaScript (Browser)"},
-	{"node", "Node.js"},
-	{"python", "Python"},
-	{"go", "Go"},
-	{"ruby", "Ruby"},
-	{"php", "PHP"},
-	{"java", "Java / Kotlin"},
-	{"dotnet", ".NET"},
-	{"rust", "Rust"},
-	{"roblox", "Roblox (Luau)"},
-	{"other", "Other"},
-}
-
 func (s *Server) projectNewPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "project_new", "New project", map[string]any{"Platforms": platforms})
 }
@@ -254,13 +240,15 @@ func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, http.StatusOK, "project_settings", p.Name+" · Settings", map[string]any{
-		"Project":     p,
-		"DSN":         s.DSN(p),
-		"ReportURL":   s.ReportURL(p),
-		"Webhooks":    hooks,
-		"MaxWebhooks": store.MaxWebhooksPerProject,
-		"Fallback":    s.Notify != nil && s.Notify.FallbackURL != "",
-		"TestResult":  testResultMessage(r.URL.Query().Get("result")),
+		"Project":      p,
+		"DSN":          s.DSN(p),
+		"ReportURL":    s.ReportURL(p),
+		"Setup":        setupFor(p.Platform, s.DSN(p), s.ReportURL(p), p.PublicKey),
+		"PlatformName": platformName(p.Platform),
+		"Webhooks":     hooks,
+		"MaxWebhooks":  store.MaxWebhooksPerProject,
+		"Fallback":     s.Notify != nil && s.Notify.FallbackURL != "",
+		"TestResult":   testResultMessage(r.URL.Query().Get("result")),
 	})
 }
 

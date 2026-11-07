@@ -82,7 +82,7 @@ func TestRobloxSettingsShowReportSnippet(t *testing.T) {
 	_, body := h.get(settings)
 	reportURL := h.ts.URL + "/api/" + strconv.FormatInt(id, 10) + "/report"
 	for _, want := range []string{
-		"Roblox setup", "ScriptContext.Error", "BurrowClientError", "Allow HTTP Requests",
+		"Roblox (Luau) setup", "ScriptContext.Error", "BurrowClientError", "Allow HTTP Requests",
 		`local URL = "` + reportURL + `"`, `local KEY = "` + key + `"`,
 		`id="report-url">` + reportURL + `<`,
 	} {

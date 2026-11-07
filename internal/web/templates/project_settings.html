@@ -3,7 +3,7 @@
 <header class="pagehead">
   <div class="pagehead-copy">
     <h1>Project settings</h1>
-    <p class="muted">{{$p.Name}}, {{if $p.Platform}}{{$p.Platform}}{{else}}other{{end}}</p>
+    <p class="muted">{{$p.Name}}, {{.Data.PlatformName}}</p>
   </div>
   <a class="button" href="/projects/{{$p.Slug}}">View issues</a>
 </header>
@@ -51,56 +51,16 @@
 </section>
 
 <section class="panel" aria-labelledby="setup-heading">
-  <h2 id="setup-heading">{{if eq $p.Platform "roblox"}}Roblox setup{{else}}SDK setup{{end}}</h2>
-  {{$dsn := .Data.DSN}}
+  <h2 id="setup-heading">{{if eq .Data.PlatformName "Other"}}Setup{{else}}{{.Data.PlatformName}} setup{{end}}</h2>
   {{if eq $p.Platform "roblox"}}
   {{template "roblox-setup" .Data}}
   {{else}}
-  <div class="code-scroll">
-  {{if eq $p.Platform "python"}}
-  <pre class="code">pip install sentry-sdk
-
-import sentry_sdk
-sentry_sdk.init(dsn="{{$dsn}}", environment="production")</pre>
-  {{else if eq $p.Platform "node"}}
-  <pre class="code">npm install @sentry/node
-
-const Sentry = require("@sentry/node");
-Sentry.init({ dsn: "{{$dsn}}", environment: "production" });</pre>
-  {{else if eq $p.Platform "javascript"}}
-  <pre class="code">npm install @sentry/browser
-
-import * as Sentry from "@sentry/browser";
-Sentry.init({ dsn: "{{$dsn}}", environment: "production" });</pre>
-  {{else if eq $p.Platform "go"}}
-  <pre class="code">go get github.com/getsentry/sentry-go
-
-err := sentry.Init(sentry.ClientOptions{Dsn: "{{$dsn}}"})
-defer sentry.Flush(2 * time.Second)</pre>
-  {{else if eq $p.Platform "ruby"}}
-  <pre class="code">gem install sentry-ruby
-
-Sentry.init { |config| config.dsn = "{{$dsn}}" }</pre>
-  {{else if eq $p.Platform "php"}}
-  <pre class="code">composer require sentry/sentry
-
-\Sentry\init(['dsn' => '{{$dsn}}']);</pre>
-  {{else if eq $p.Platform "rust"}}
-  <pre class="code">cargo add sentry
-
-let _guard = sentry::init(("{{$dsn}}", sentry::ClientOptions::default()));</pre>
-  {{else if eq $p.Platform "java"}}
-  <pre class="code">// io.sentry:sentry
-Sentry.init(options -> options.setDsn("{{$dsn}}"));</pre>
-  {{else if eq $p.Platform "dotnet"}}
-  <pre class="code">dotnet add package Sentry
-
-SentrySdk.Init(o => o.Dsn = "{{$dsn}}");</pre>
-  {{else}}
-  <p>Install the Sentry SDK for your language and initialize it with the DSN above. Burrow speaks the same ingestion protocol.</p>
+  {{range $i, $step := .Data.Setup.Steps}}
+  <h3 class="snippet-title">{{if gt (len $.Data.Setup.Steps) 1}}{{add $i 1}}. {{end}}{{$step.Label}}</h3>
+  <div class="code-scroll"><pre class="code" id="setup-{{$i}}">{{$step.Code}}</pre></div>
+  <button type="button" class="small js-only snippet-copy" data-copy="#setup-{{$i}}">Copy</button>
   {{end}}
-  </div>
-  <p class="muted small">Tip: set <code>traces_sample_rate</code> to 0. Burrow accepts performance data and discards it.</p>
+  {{with .Data.Setup.Note}}<p class="muted small">{{.}}</p>{{end}}
   {{end}}
 </section>
 

@@ -1,4 +1,4 @@
-# 🦡 Burrow
+# 🦊 Burrow
 
 **Lightweight, self-hosted, open-source error tracking that works with the Sentry SDKs you already use.**
 
