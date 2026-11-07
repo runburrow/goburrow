@@ -2,7 +2,7 @@
 <section class="auth-card">
   <span class="auth-fox" aria-hidden="true">{{template "fox-peek" .}}</span>
   <h1>Create the admin account</h1>
-  <p class="muted">Burrow has one account. This page closes once it exists.</p>
+  <p class="muted">The first account is the admin. This page closes once it exists; everyone else joins with an invite link.</p>
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/setup" class="stack">
     <label for="setup-email">Email
@@ -14,6 +14,10 @@
     </label>
     <label for="setup-password2">Confirm password
       <input id="setup-password2" type="password" name="password2" minlength="10" maxlength="72" required autocomplete="new-password">
+    </label>
+    <label for="setup-team">Team name
+      <input id="setup-team" name="team" value="{{.Data.Team}}" placeholder="My team" maxlength="100" autocomplete="organization" aria-describedby="setup-team-help">
+      <span class="help" id="setup-team-help">Projects belong to teams. Rename it or add more later.</span>
     </label>
     <button class="primary auth-submit" type="submit">Create account</button>
   </form>

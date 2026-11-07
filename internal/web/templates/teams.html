@@ -1,0 +1,25 @@
+{{define "content"}}
+<header class="pagehead">
+  <div class="pagehead-copy">
+    <h1>Teams</h1>
+    <p class="muted">Teams own projects. Only a team's members see its projects and issues.</p>
+  </div>
+  <a class="button" href="/teams/new">{{template "icon-plus" .}}<span>New team</span></a>
+</header>
+
+{{if .Data}}
+<ul class="rows" aria-label="Teams">
+  {{range .Data}}
+  <li class="row">
+    <span class="row-main">
+      <a class="row-title" href="/teams/{{.Slug}}">{{.Name}}</a>
+      <span class="help">{{.MemberCount}} {{plural .MemberCount "member" "members"}} · {{.ProjectCount}} {{plural .ProjectCount "project" "projects"}}</span>
+    </span>
+    {{if .MyRole}}<span class="pill">{{.MyRole}}</span>{{else}}<span class="pill" title="You can manage this team because you're an admin">Admin view</span>{{end}}
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<section class="panel"><p>You're not on any team yet. Create one, or ask a team owner for an invite link.</p></section>
+{{end}}
+{{end}}

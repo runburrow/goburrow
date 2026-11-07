@@ -7,9 +7,21 @@
 </header>
 
 <section class="panel narrow-panel">
+  {{if not .Data.Teams}}
+  <p>Only team owners can create projects. Ask an owner of your team, or <a href="/teams/new">start a team of your own</a>.</p>
+  {{else}}
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/projects/new" class="stack">
     <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    {{$teams := .Data.Teams}}
+    {{if gt (len $teams) 1}}
+    <label for="project-team">Team
+      <select id="project-team" name="team" required aria-describedby="project-team-help">
+        {{range $teams}}<option value="{{.Slug}}" {{if eq .Slug $.Data.Selected}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+      <span class="help" id="project-team-help">Only the team's members can see the project and its issues.</span>
+    </label>
+    {{else}}{{with index $teams 0}}<input type="hidden" name="team" value="{{.Slug}}">{{end}}{{end}}
     <label for="project-name">Name
       <input id="project-name" name="name" required maxlength="100" placeholder="e.g. checkout-api" autocomplete="off" autofocus aria-describedby="project-name-help">
       <span class="help" id="project-name-help">Shown in the project list. Up to 100 characters.</span>
@@ -25,5 +37,6 @@
       <a class="button" href="/">Cancel</a>
     </div>
   </form>
+  {{end}}
 </section>
 {{end}}

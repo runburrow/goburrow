@@ -23,9 +23,10 @@ func TestLoginThrottle(t *testing.T) {
 	if code != http.StatusTooManyRequests || !strings.Contains(body, "Too many failed attempts. Try again in 15 minutes.") {
 		t.Fatalf("throttled login: %d %q", code, body[:200])
 	}
-	// Another account from the same address is blocked by the address key.
-	if code, _ := h.post("/login", url.Values{"email": {"other@burrow.test"}, "password": {"x"}}); code != http.StatusTooManyRequests {
-		t.Errorf("same address, other email: %d", code)
+	// The address limit is much higher (one office or proxy carries many
+	// people), so another account from the same address isn't blocked yet.
+	if code, _ := h.post("/login", url.Values{"email": {"other@burrow.test"}, "password": {"x"}}); code != http.StatusUnauthorized {
+		t.Errorf("same address, other email: %d, want 401", code)
 	}
 }
 

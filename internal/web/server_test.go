@@ -30,11 +30,17 @@ import (
 var testNow = time.Date(2026, 3, 14, 12, 0, 0, 0, time.UTC)
 
 type harness struct {
-	t      *testing.T
-	ts     *httptest.Server
-	st     *store.Store
-	client *http.Client
-	csrf   string
+	t        *testing.T
+	ts       *httptest.Server
+	st       *store.Store
+	client   *http.Client
+	csrf     string
+	srv      *Server
+	lastBody string
+}
+
+func (h *harness) Ingest(p *store.Project, ev *event.Event) error {
+	return h.srv.Ingest.Ingest(context.Background(), p, ev)
 }
 
 func newHarness(t *testing.T) *harness {
@@ -57,7 +63,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	ts.Config.Handler = h
 	jar, _ := cookiejar.New(nil)
-	return &harness{t: t, ts: ts, st: st, client: &http.Client{Jar: jar}}
+	return &harness{t: t, ts: ts, st: st, srv: srv, client: &http.Client{Jar: jar}}
 }
 
 func (h *harness) get(path string) (int, string) {
@@ -68,6 +74,7 @@ func (h *harness) get(path string) (int, string) {
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
+	h.lastBody = string(b)
 	if m := regexp.MustCompile(`name="csrf" value="([0-9a-f]+)"`).FindSubmatch(b); m != nil {
 		h.csrf = string(m[1])
 	}
@@ -85,6 +92,7 @@ func (h *harness) post(path string, form url.Values) (int, string) {
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
+	h.lastBody = string(b)
 	return resp.StatusCode, string(b)
 }
 

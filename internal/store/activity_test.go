@@ -18,7 +18,7 @@ func TestIssueAndProjectActivity(t *testing.T) {
 	defer st.Close()
 
 	ctx := context.Background()
-	p, err := st.CreateProject(ctx, "Test Project", "go")
+	p, err := st.CreateProject(ctx, 0, "Test Project", "go")
 	if err != nil {
 		t.Fatalf("CreateProject failed: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestIssueAndProjectActivity(t *testing.T) {
 	// ProjectActivity check
 	// Project 1 sum: day 0 has 4 (3 from issue1 + 1 from issue2), day 12 has 1, day 13 has 3 (2 from issue1 + 1 from issue2).
 	// Empty project: all zeros.
-	pEmpty, err := st.CreateProject(ctx, "Empty Project", "other")
+	pEmpty, err := st.CreateProject(ctx, 0, "Empty Project", "other")
 	if err != nil {
 		t.Fatalf("CreateProject empty failed: %v", err)
 	}

@@ -22,7 +22,7 @@ func TestTargetsFallbackOnlyWithoutProjectWebhooks(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	p, _ := st.CreateProject(ctx, "Shop", "go")
+	p, _ := st.CreateProject(ctx, 0, "Shop", "go")
 	d := NewDispatcher(st, "https://fallback.test/hook", "https://burrow.test", true, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	if got := d.targets(ctx, p, false); !slices.Equal(got, []string{"https://fallback.test/hook"}) {

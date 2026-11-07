@@ -27,6 +27,10 @@ traces, breadcrumbs, tags and user context.
   JS bundle hashes, and the volatile parts of messages (numbers, UUIDs, IPs, hex,
   timestamps, quoted values) are ignored, so `timed out after 3000ms` and `timed out after
   4521ms` land in the same issue. SDK-side `fingerprint` (including `{{ default }}`) is honored.
+- **Teams.** Projects belong to teams; only a team's members see its projects and issues.
+  Members triage, owners also manage members, invites, keys, webhooks and projects, and
+  instance admins manage every team and account. People join through single-use, expiring
+  invite links, optionally locked to an email address.
 - **Issue workflow.** Resolve, ignore, or delete issues. A resolved issue that happens again
   **reopens automatically** (regression).
 - **Event detail.** Chained exceptions, stack frames with source context and locals,
@@ -59,7 +63,8 @@ go build -o burrow ./cmd/burrow
 ./burrow
 ```
 
-On first visit you'll create the admin account. Then create a project, copy its DSN, and:
+On first visit you'll create the admin account and your first team. Then create a project,
+copy its DSN, and:
 
 ```python
 import sentry_sdk
@@ -68,6 +73,8 @@ sentry_sdk.init(dsn="http://<key>@localhost:8000/1")
 ```
 
 Not ready to wire up an SDK? Every project has a **Send test event** button.
+
+Invite teammates from **Teams**: each invite is a single-use link you send however you like.
 
 ## Report API
 

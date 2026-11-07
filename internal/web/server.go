@@ -94,6 +94,27 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /issues/{id}/delete", s.authed(s.issueDelete))
 	mux.HandleFunc("POST /projects/{slug}/issues/status", s.authed(s.issueBulkStatus))
 	mux.HandleFunc("POST /projects/{slug}/issues/restore", s.authed(s.issueBulkRestore))
+	mux.HandleFunc("GET /teams", s.authed(s.teamList))
+	mux.HandleFunc("GET /teams/new", s.authed(s.teamNewPage))
+	mux.HandleFunc("POST /teams/new", s.authed(s.teamCreate))
+	mux.HandleFunc("GET /teams/{team}", s.authed(s.teamDetail))
+	mux.HandleFunc("POST /teams/{team}/rename", s.authed(s.teamRename))
+	mux.HandleFunc("POST /teams/{team}/delete", s.authed(s.teamDelete))
+	mux.HandleFunc("POST /teams/{team}/members/{user}/role", s.authed(s.memberRole))
+	mux.HandleFunc("POST /teams/{team}/members/{user}/remove", s.authed(s.memberRemove))
+	mux.HandleFunc("POST /teams/{team}/invites", s.authed(s.inviteCreate))
+	mux.HandleFunc("POST /teams/{team}/invites/{invite}/revoke", s.authed(s.inviteRevoke))
+
+	mux.HandleFunc("GET /invite/{token}", s.optionalAuth(s.invitePage))
+	mux.HandleFunc("POST /invite/{token}", s.optionalAuth(s.inviteAccept))
+
+	mux.HandleFunc("GET /account", s.authed(s.accountPage))
+	mux.HandleFunc("POST /account/password", s.authed(s.accountPassword))
+
+	mux.HandleFunc("GET /admin/users", s.authed(s.adminOnly(s.adminUsers)))
+	mux.HandleFunc("POST /admin/users/{user}/admin", s.authed(s.adminOnly(s.adminSetAdmin)))
+	mux.HandleFunc("POST /admin/users/{user}/delete", s.authed(s.adminOnly(s.adminDeleteUser)))
+
 	mux.HandleFunc("/", s.withSession(s.notFound)) // unknown routes get the designed 404, not net/http's plain text
 
 	return s.securityHeaders(mux), nil
@@ -222,6 +243,32 @@ func (s *Server) withSession(next http.HandlerFunc) http.HandlerFunc {
 			if sess, err := s.Store.SessionByToken(r.Context(), c.Value); err == nil {
 				r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, sess))
 			}
+		}
+		next(w, r)
+	}
+}
+
+// optionalAuth loads the session if there is one (enforcing CSRF on its
+// POSTs) and otherwise falls back to the same-origin check used by the
+// login form. Used by invite links, which work signed in or out.
+func (s *Server) optionalAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var sess *store.Session
+		if c, err := r.Cookie(sessionCookie); err == nil {
+			sess, err = s.Store.SessionByToken(r.Context(), c.Value)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				s.serverError(w, r, err)
+				return
+			}
+		}
+		if r.Method == http.MethodPost {
+			if !s.originOK(r) || (sess != nil && !constantTimeEq(r.PostFormValue("csrf"), sess.CSRF)) {
+				http.Error(w, "invalid CSRF token. Reload the page and try again.", http.StatusForbidden)
+				return
+			}
+		}
+		if sess != nil {
+			r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, sess))
 		}
 		next(w, r)
 	}

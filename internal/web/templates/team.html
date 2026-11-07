@@ -1,0 +1,147 @@
+{{define "content"}}
+{{$t := .Data.Team}}{{$csrf := .Session.CSRF}}{{$me := .Data.Me}}{{$manage := .Data.CanManage}}
+<header class="pagehead">
+  <div class="pagehead-copy">
+    <h1>{{$t.Name}}</h1>
+    <p class="muted">{{len .Data.Members}} {{plural (len .Data.Members) "member" "members"}} · {{len .Data.Projects}} {{plural (len .Data.Projects) "project" "projects"}}</p>
+  </div>
+  <a class="button" href="/teams">All teams</a>
+</header>
+
+{{if eq .Flash "joined"}}<p class="alert ok" role="status">Welcome to {{$t.Name}}.</p>{{end}}
+{{if eq .Flash "renamed"}}<p class="alert ok" role="status">Team renamed.</p>{{end}}
+{{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+
+{{with .Data.InviteURL}}
+<div class="alert ok" role="status">
+  <p><strong>Invite link created.</strong> Copy it now: for security it isn't shown again. It works once and expires in {{$.Data.InviteTTL}} days.</p>
+  <div class="copybox"><code id="invite-url">{{.}}</code><button type="button" class="small js-only" data-copy="#invite-url">Copy link</button></div>
+</div>
+{{end}}
+
+<section class="panel" aria-labelledby="team-projects-heading">
+  <div class="panel-head">
+    <h2 id="team-projects-heading">Projects</h2>
+    {{if $manage}}<a class="button small" href="/projects/new?team={{$t.Slug}}">New project</a>{{end}}
+  </div>
+  {{if .Data.Projects}}
+  <ul class="rows">
+    {{range .Data.Projects}}
+    <li class="row">
+      <span class="row-main">
+        <a class="row-title" href="/projects/{{.Slug}}">{{.Name}}</a>
+        <span class="help">{{platformName .Platform}}</span>
+      </span>
+      <span class="row-meta"><span class="{{if .UnresolvedCount}}count-hot{{end}}">{{comma .UnresolvedCount}}</span> unresolved</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}<p class="muted">No projects yet.{{if $manage}} Create one to get a DSN.{{end}}</p>{{end}}
+</section>
+
+<section class="panel" aria-labelledby="members-heading">
+  <h2 id="members-heading">Members</h2>
+  <p class="muted">Members see and triage issues. Owners also manage members, invites and projects.</p>
+  <ul class="rows">
+    {{range .Data.Members}}
+    <li class="row">
+      <span class="row-main">
+        <span class="row-title">{{.User.Email}}{{if eq .User.ID $me}} <span class="muted">(you)</span>{{end}}</span>
+        <span class="help">Joined {{ago .JoinedAt}}</span>
+      </span>
+      <span class="row-actions">
+        {{if $manage}}
+        <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/role" class="inline-form">
+          <input type="hidden" name="csrf" value="{{$csrf}}">
+          <label class="sr-only" for="role-{{.User.ID}}">Role for {{.User.Email}}</label>
+          <select id="role-{{.User.ID}}" name="role" data-autosubmit>
+            <option value="member" {{if eq .Role "member"}}selected{{end}}>Member</option>
+            <option value="owner" {{if eq .Role "owner"}}selected{{end}}>Owner</option>
+          </select>
+          <button type="submit" class="small no-js-only">Save</button>
+        </form>
+        {{else}}<span class="pill">{{.Role}}</span>{{end}}
+        {{if eq .User.ID $me}}
+        <details class="row-confirm">
+          <summary class="button small">Leave</summary>
+          <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/remove" class="stack">
+            <input type="hidden" name="csrf" value="{{$csrf}}">
+            <p class="muted">You'll lose access to {{$t.Name}}'s projects until someone invites you again.</p>
+            <button type="submit" class="destructive">Leave {{$t.Name}}</button>
+          </form>
+        </details>
+        {{else if $manage}}
+        <details class="row-confirm">
+          <summary class="button small destructive">Remove</summary>
+          <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/remove" class="stack">
+            <input type="hidden" name="csrf" value="{{$csrf}}">
+            <p class="muted">{{.User.Email}} loses access to this team's projects. Their account stays.</p>
+            <button type="submit" class="destructive">Remove from {{$t.Name}}</button>
+          </form>
+        </details>
+        {{end}}
+      </span>
+    </li>
+    {{end}}
+  </ul>
+</section>
+
+{{if $manage}}
+<section class="panel" aria-labelledby="invite-heading">
+  <h2 id="invite-heading">Invite someone</h2>
+  <p class="muted">Creates a single-use link that expires in {{.Data.InviteTTL}} days. Send it however you like.</p>
+  <form method="post" action="/teams/{{$t.Slug}}/invites" class="invite-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label for="invite-email"><span>Email <span class="help">(optional)</span></span>
+      <input id="invite-email" type="email" name="email" placeholder="otter@example.com" autocomplete="off" aria-describedby="invite-email-help">
+    </label>
+    <label for="invite-role"><span>Role</span>
+      <select id="invite-role" name="role"><option value="member">Member</option><option value="owner">Owner</option></select>
+    </label>
+    <button type="submit">Create invite link</button>
+  </form>
+  <p class="help invite-help" id="invite-email-help">With an email, only that address can use the link.</p>
+
+  {{if .Data.Invites}}
+  <h3 class="snippet-title">Pending invites</h3>
+  <ul class="rows">
+    {{range .Data.Invites}}
+    <li class="row">
+      <span class="row-main">
+        <span class="row-title">{{if .Email}}{{.Email}}{{else}}Anyone with the link{{end}}</span>
+        <span class="help">{{if eq .Role "owner"}}Owner{{else}}Member{{end}} · created by {{if .CreatedBy}}{{.CreatedBy}}{{else}}a deleted user{{end}} · expires <time datetime="{{isodate .ExpiresAt}}" title="{{datetime .ExpiresAt}}">{{until .ExpiresAt}}</time></span>
+      </span>
+      <form method="post" action="/teams/{{$t.Slug}}/invites/{{.ID}}/revoke" class="row-actions">
+        <input type="hidden" name="csrf" value="{{$csrf}}"><button type="submit" class="small">Revoke</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+
+<section class="panel" aria-labelledby="team-settings-heading">
+  <h2 id="team-settings-heading">Rename team</h2>
+  <form method="post" action="/teams/{{$t.Slug}}/rename" class="delete-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label for="team-rename"><span>Name</span>
+      <input id="team-rename" name="name" value="{{$t.Name}}" required maxlength="100">
+    </label>
+    <button type="submit">Rename</button>
+  </form>
+</section>
+
+<section class="panel danger-zone" aria-labelledby="team-danger-heading">
+  <h2 id="team-danger-heading">Delete team</h2>
+  {{$n := len .Data.Projects}}
+  <p class="muted">Deletes the team{{if eq $n 1}} and its project, with every issue and event in it{{else if gt $n 1}} and all {{$n}} of its projects, with every issue and event in them{{end}}. This can't be undone.</p>
+  <form method="post" action="/teams/{{$t.Slug}}/delete" class="delete-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label for="team-delete-confirm"><span>Type <code>{{$t.Slug}}</code> to confirm</span>
+      <input id="team-delete-confirm" name="confirm" autocomplete="off" spellcheck="false" required pattern="{{$t.Slug}}">
+    </label>
+    <button class="destructive" type="submit">Delete team</button>
+  </form>
+</section>
+{{end}}
+{{end}}

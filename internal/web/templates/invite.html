@@ -1,0 +1,32 @@
+{{define "content"}}
+{{$inv := .Data.Invite}}
+<section class="auth-card">
+  <span class="auth-fox" aria-hidden="true">{{template "fox-peek" .}}</span>
+  <h1>Join {{$inv.TeamName}}</h1>
+  <p class="muted">You've been invited as {{if eq $inv.Role "owner"}}an owner{{else}}a member{{end}}. The invite expires {{until $inv.ExpiresAt}}.</p>
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  {{if .Session}}
+  <form method="post" action="/invite/{{.Data.Token}}" class="stack">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <p>You're logged in as <strong>{{.Session.User.Email}}</strong>.</p>
+    <button class="primary auth-submit" type="submit">Join {{$inv.TeamName}}</button>
+  </form>
+  {{else}}
+  <form method="post" action="/invite/{{.Data.Token}}" class="stack">
+    <label for="invite-email">Email
+      <input id="invite-email" type="email" name="email" value="{{.Data.Email}}" required autocomplete="username" inputmode="email" spellcheck="false" {{if $inv.Email}}readonly aria-describedby="invite-email-help"{{else}}autofocus{{end}}>
+      {{if $inv.Email}}<span class="help" id="invite-email-help">This invite is for this address.</span>{{end}}
+    </label>
+    <label for="invite-password">Password
+      <input id="invite-password" type="password" name="password" minlength="10" maxlength="72" required autocomplete="new-password" aria-describedby="invite-password-help" {{if $inv.Email}}autofocus{{end}}>
+      <span class="help" id="invite-password-help">At least 10 characters.</span>
+    </label>
+    <label for="invite-password2">Confirm password
+      <input id="invite-password2" type="password" name="password2" minlength="10" maxlength="72" required autocomplete="new-password">
+    </label>
+    <button class="primary auth-submit" type="submit">Create account and join</button>
+  </form>
+  <p class="muted small auth-note">Already have an account? <a href="/login?next=/invite/{{.Data.Token}}">Log in to accept</a>.</p>
+  {{end}}
+</section>
+{{end}}

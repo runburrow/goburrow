@@ -1,0 +1,38 @@
+{{define "content"}}
+<header class="pagehead">
+  <div class="pagehead-copy">
+    <h1>Your account</h1>
+    <p class="muted">{{.Session.User.Email}}{{if .Session.User.IsAdmin}} · instance admin{{end}}</p>
+  </div>
+</header>
+
+{{if eq .Flash "password"}}<p class="alert ok" role="status">Password changed. You've been logged out everywhere else.</p>{{end}}
+
+<section class="panel narrow-panel" aria-labelledby="password-heading">
+  <h2 id="password-heading">Change password</h2>
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/account/password" class="stack">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <input type="hidden" name="username" value="{{.Session.User.Email}}" autocomplete="username">
+    <label for="current-password">Current password
+      <input id="current-password" type="password" name="current" required autocomplete="current-password">
+    </label>
+    <label for="new-password">New password
+      <input id="new-password" type="password" name="password" minlength="10" maxlength="72" required autocomplete="new-password" aria-describedby="new-password-help">
+      <span class="help" id="new-password-help">At least 10 characters. Changing it logs out your other sessions.</span>
+    </label>
+    <label for="new-password2">Confirm new password
+      <input id="new-password2" type="password" name="password2" minlength="10" maxlength="72" required autocomplete="new-password">
+    </label>
+    <div class="form-actions"><button class="primary" type="submit">Change password</button></div>
+  </form>
+</section>
+
+<section class="panel narrow-panel" aria-labelledby="session-heading">
+  <h2 id="session-heading">This device</h2>
+  <form method="post" action="/logout">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <button type="submit">Log out</button>
+  </form>
+</section>
+{{end}}

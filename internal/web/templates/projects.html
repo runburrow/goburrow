@@ -2,19 +2,27 @@
 <header class="pagehead">
   <div class="pagehead-copy">
     <h1>Projects</h1>
-    <p class="muted">{{len .Data}} {{plural (len .Data) "project" "projects"}}</p>
+    <p class="muted">{{with .Data.Count}}{{.}} {{plural . "project" "projects"}}{{else}}No projects yet{{end}}</p>
   </div>
-  <a class="button" href="/projects/new">{{template "icon-plus" .}}<span>New project</span></a>
+  {{if .Data.CanCreate}}<a class="button" href="/projects/new">{{template "icon-plus" .}}<span>New project</span></a>{{end}}
 </header>
 
-<section class="tracklist project-list" aria-label="Projects">
+{{if not .Data.Groups}}
+<section class="panel">
+  <p>Your teams don't have any projects yet. A team owner can create one, or you can start a team of your own under <a href="/teams">Teams</a>.</p>
+</section>
+{{end}}
+
+{{range .Data.Groups}}
+{{if $.Data.MultiTeam}}<h2 class="team-group">{{if .Team}}{{.Team}}{{else}}No team{{end}}</h2>{{end}}
+<section class="tracklist project-list" aria-label="{{if .Team}}{{.Team}} projects{{else}}Projects{{end}}">
   <div class="tracklist-head" aria-hidden="true">
     <span>Project</span>
-    <span class="track-activity">{{(index .Data 0).ActivityFrom}} – today</span>
+    <span class="track-activity">{{$.Data.ActivityFrom}} – today</span>
     <span class="num">Unresolved</span>
     <span class="num">Last event</span>
   </div>
-  {{range .Data}}
+  {{range .Projects}}
   {{$p := .}}
   <div class="track-row project-row">
     <span class="track-main">
@@ -31,4 +39,5 @@
   </div>
   {{end}}
 </section>
+{{end}}
 {{end}}

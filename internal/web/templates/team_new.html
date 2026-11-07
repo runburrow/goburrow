@@ -1,0 +1,22 @@
+{{define "content"}}
+<header class="pagehead">
+  <div class="pagehead-copy">
+    <h1>New team</h1>
+    <p class="muted">You'll be its owner. Invite people from the team's page afterwards.</p>
+  </div>
+</header>
+
+<section class="panel narrow-panel">
+  {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/teams/new" class="stack">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <label for="team-name">Name
+      <input id="team-name" name="name" value="{{.Data.Name}}" required maxlength="100" placeholder="e.g. Payments" autocomplete="off" autofocus>
+    </label>
+    <div class="form-actions">
+      <button class="primary" type="submit">Create team</button>
+      <a class="button" href="/teams">Cancel</a>
+    </div>
+  </form>
+</section>
+{{end}}

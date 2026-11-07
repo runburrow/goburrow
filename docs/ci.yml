@@ -1,3 +1,6 @@
+# GitHub Actions CI for Burrow.
+# To enable: copy this file to .github/workflows/ci.yml (e.g. via GitHub's web editor).
+# It lives here because automated pushes can't create workflow files without extra token scope.
 name: CI
 on:
   push:

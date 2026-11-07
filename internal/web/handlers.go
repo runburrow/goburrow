@@ -83,9 +83,9 @@ func (s *Server) setupPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
-	// Only the very first account can be created this way; CreateFirstUser
-	// re-checks inside its transaction, so simultaneous submissions can't
-	// both win.
+	// Only the very first account can be created this way; Setup re-checks
+	// inside its transaction, so simultaneous submissions can't both win.
+	// The first account is an instance admin and owns the first team.
 	if n, err := s.Store.UserCount(r.Context()); err != nil {
 		s.serverError(w, r, err)
 		return
@@ -93,17 +93,20 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "setup already completed", http.StatusForbidden)
 		return
 	}
-	email, pw, pw2 := r.PostFormValue("email"), r.PostFormValue("password"), r.PostFormValue("password2")
+	email, pw, pw2, team := r.PostFormValue("email"), r.PostFormValue("password"), r.PostFormValue("password2"), r.PostFormValue("team")
+	fail := func(msg string) {
+		s.render(w, r, http.StatusBadRequest, "setup", "Welcome to Burrow", map[string]string{"Error": msg, "Email": email, "Team": team})
+	}
 	if pw != pw2 {
-		s.render(w, r, http.StatusBadRequest, "setup", "Welcome to Burrow", map[string]string{"Error": "Passwords don't match.", "Email": email})
+		fail("Passwords don't match.")
 		return
 	}
-	u, err := s.Store.CreateFirstUser(r.Context(), email, pw)
+	u, err := s.Store.Setup(r.Context(), email, pw, team)
 	if errors.Is(err, store.ErrSetupDone) {
 		http.Error(w, "setup already completed", http.StatusForbidden)
 		return
 	} else if err != nil {
-		s.render(w, r, http.StatusBadRequest, "setup", "Welcome to Burrow", map[string]string{"Error": err.Error(), "Email": email})
+		fail(err.Error())
 		return
 	}
 	s.startSession(w, r, u.ID, "/projects/new")
@@ -177,14 +180,32 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 // ---------------------------------------------------------------- projects
 
+// projectGroup is one team's projects on the projects page.
+type projectGroup struct {
+	Team     string
+	Projects []ProjectView
+}
+
 func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
-	projects, err := s.Store.ListProjects(r.Context())
+	sess := sessionFrom(r.Context())
+	projects, err := s.Store.ListProjects(r.Context(), sess.User.ID, sess.User.IsAdmin, 0)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	teams, err := s.creatableTeams(r)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	if len(projects) == 0 {
-		http.Redirect(w, r, "/projects/new", http.StatusSeeOther)
+		if len(teams) > 0 {
+			http.Redirect(w, r, "/projects/new", http.StatusSeeOther)
+			return
+		}
+		// A member of teams with no projects yet: nothing to list, and
+		// nothing they may create. The page says so.
+		s.render(w, r, http.StatusOK, "projects", "Projects", map[string]any{"Groups": []projectGroup{}, "CanCreate": false})
 		return
 	}
 	pids := make([]int64, len(projects))
@@ -196,10 +217,12 @@ func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	views := make([]ProjectView, len(projects))
+	// Grouped by team (ListProjects sorts by team) so someone in several
+	// teams sees structure, not a flat pile.
+	var groups []projectGroup
 	for i, p := range projects {
 		act, bars, total, summary := buildActivityFields(actMap[p.ID])
-		views[i] = ProjectView{
+		v := ProjectView{
 			Project:         p,
 			TrackLabel:      trackNumber(i + 1),
 			Activity:        act,
@@ -208,22 +231,84 @@ func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
 			ActivitySummary: summary,
 			ActivityFrom:    activityFrom(s.now()),
 		}
+		if len(groups) == 0 || groups[len(groups)-1].Team != p.TeamName {
+			groups = append(groups, projectGroup{Team: p.TeamName})
+		}
+		groups[len(groups)-1].Projects = append(groups[len(groups)-1].Projects, v)
 	}
-	s.render(w, r, http.StatusOK, "projects", "Projects", views)
+	s.render(w, r, http.StatusOK, "projects", "Projects", map[string]any{
+		"Groups":       groups,
+		"Count":        len(projects),
+		"CanCreate":    len(teams) > 0,
+		"MultiTeam":    len(groups) > 1,
+		"ActivityFrom": activityFrom(s.now()),
+	})
+}
+
+// creatableTeams lists the teams the current user may create projects in:
+// the ones they own, or all of them for instance admins.
+func (s *Server) creatableTeams(r *http.Request) ([]*store.Team, error) {
+	sess := sessionFrom(r.Context())
+	all, err := s.Store.ListTeams(r.Context(), sess.User.ID, sess.User.IsAdmin)
+	if err != nil {
+		return nil, err
+	}
+	var out []*store.Team
+	for _, t := range all {
+		if sess.User.IsAdmin || t.MyRole == store.RoleOwner {
+			out = append(out, t)
+		}
+	}
+	return out, nil
 }
 
 func (s *Server) projectNewPage(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, http.StatusOK, "project_new", "New project", map[string]any{"Groups": platformGroups})
+	s.renderProjectNew(w, r, http.StatusOK, "")
+}
+
+func (s *Server) renderProjectNew(w http.ResponseWriter, r *http.Request, code int, msg string) {
+	teams, err := s.creatableTeams(r)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.render(w, r, code, "project_new", "New project", map[string]any{
+		"Groups": platformGroups, "Teams": teams, "Error": msg, "Selected": r.FormValue("team"),
+	})
 }
 
 func (s *Server) projectCreate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	platform := r.PostFormValue("platform")
 	if name == "" || len(name) > 100 {
-		s.render(w, r, http.StatusBadRequest, "project_new", "New project", map[string]any{"Groups": platformGroups, "Error": "Name is required (max 100 characters)."})
+		s.renderProjectNew(w, r, http.StatusBadRequest, "Name is required (max 100 characters).")
 		return
 	}
-	p, err := s.Store.CreateProject(r.Context(), name, platform)
+	// With only one team to choose from the form has no picker, so an
+	// empty choice means that team.
+	slug := r.PostFormValue("team")
+	if slug == "" {
+		if teams, err := s.creatableTeams(r); err == nil && len(teams) == 1 {
+			slug = teams[0].Slug
+		}
+	}
+	team, err := s.Store.TeamBySlug(r.Context(), slug)
+	if errors.Is(err, store.ErrNotFound) {
+		s.renderProjectNew(w, r, http.StatusBadRequest, "Pick a team for the project.")
+		return
+	} else if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	a, err := s.teamAccess(r, team.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if !s.require(w, r, a, accessOwner) {
+		return
+	}
+	p, err := s.Store.CreateProject(r.Context(), team.ID, name, platform)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -233,20 +318,8 @@ func (s *Server) projectCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/projects/"+p.Slug+"?flash=created", http.StatusSeeOther)
 }
 
-func (s *Server) loadProject(w http.ResponseWriter, r *http.Request) (*store.Project, bool) {
-	p, err := s.Store.ProjectBySlug(r.Context(), r.PathValue("slug"))
-	if errors.Is(err, store.ErrNotFound) {
-		s.notFound(w, r)
-		return nil, false
-	} else if err != nil {
-		s.serverError(w, r, err)
-		return nil, false
-	}
-	return p, true
-}
-
 func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, a, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -258,6 +331,7 @@ func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
 	setup := setupFor(p.Platform, s.DSN(p), s.ReportURL(p), p.PublicKey)
 	s.render(w, r, http.StatusOK, "project_settings", p.Name+" · Settings", map[string]any{
 		"Project":      p,
+		"CanManage":    a >= accessOwner,
 		"DSN":          s.DSN(p),
 		"ReportURL":    s.ReportURL(p),
 		"Setup":        setup,
@@ -273,7 +347,7 @@ func (s *Server) projectSettings(w http.ResponseWriter, r *http.Request) {
 // projectSetupDownload serves a setup step as a file, for code too long to
 // copy comfortably (the Roblox module).
 func (s *Server) projectSetupDownload(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -344,7 +418,7 @@ func isLoopback(host string) bool {
 // --------------------------------------------------------------- webhooks
 
 func (s *Server) webhookCreate(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessOwner)
 	if !ok {
 		return
 	}
@@ -373,7 +447,7 @@ func (s *Server) webhookCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) loadWebhook(w http.ResponseWriter, r *http.Request) (*store.Project, *store.Webhook, bool) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessOwner)
 	if !ok {
 		return nil, nil, false
 	}
@@ -447,7 +521,7 @@ func testResultMessage(code string) map[string]any {
 }
 
 func (s *Server) projectTestEvent(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -459,7 +533,7 @@ func (s *Server) projectTestEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) projectRotateKey(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessOwner)
 	if !ok {
 		return
 	}
@@ -477,7 +551,7 @@ func (s *Server) projectRotateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) projectDelete(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessOwner)
 	if !ok {
 		return
 	}
@@ -497,7 +571,7 @@ func (s *Server) projectDelete(w http.ResponseWriter, r *http.Request) {
 const issuesPerPage = 50
 
 func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, a, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -611,6 +685,7 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 	}
 	data := map[string]any{
 		"Project":      p,
+		"CanManage":    a >= accessOwner,
 		"TabURL":       tabURLs,
 		"ClearURL":     "/projects/" + p.Slug + "?" + clear.Encode(),
 		"Issues":       issueViews,
@@ -665,30 +740,8 @@ func (s *Server) issueList(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "issues", p.Name, data)
 }
 
-func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request) (*store.Issue, *store.Project, bool) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		s.notFound(w, r)
-		return nil, nil, false
-	}
-	issue, err := s.Store.IssueByID(r.Context(), id)
-	if errors.Is(err, store.ErrNotFound) {
-		s.render(w, r, http.StatusNotFound, "error", "Issue not found", "There's no issue with that number. It may have been deleted, or the link came from another Burrow server.")
-		return nil, nil, false
-	} else if err != nil {
-		s.serverError(w, r, err)
-		return nil, nil, false
-	}
-	p, err := s.Store.ProjectByID(r.Context(), issue.ProjectID)
-	if err != nil {
-		s.serverError(w, r, err)
-		return nil, nil, false
-	}
-	return issue, p, true
-}
-
 func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
-	issue, p, ok := s.loadIssue(w, r)
+	issue, p, a, ok := s.loadIssue(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -722,6 +775,7 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
 		"Issue":           iv,
 		"Project":         p,
+		"CanManage":       a >= accessOwner,
 		"Recent":          recent,
 		"Activity":        act,
 		"Bars":            bars,
@@ -743,7 +797,7 @@ func (s *Server) issueDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) issueSetStatus(w http.ResponseWriter, r *http.Request) {
-	issue, _, ok := s.loadIssue(w, r)
+	issue, _, _, ok := s.loadIssue(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -779,7 +833,7 @@ func (s *Server) issueSetStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) issueDelete(w http.ResponseWriter, r *http.Request) {
-	issue, p, ok := s.loadIssue(w, r)
+	issue, p, _, ok := s.loadIssue(w, r, accessOwner)
 	if !ok {
 		return
 	}
@@ -817,7 +871,7 @@ func levelsAtLeast(min string) []string {
 // issueBulkStatus changes the status of the issues ticked on the list page.
 // It is a plain form post, so bulk triage works without JavaScript.
 func (s *Server) issueBulkStatus(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}
@@ -901,7 +955,7 @@ func parseWas(raw []string) map[int64]store.IssueStatus {
 // previous status, but only if it's still in the status the bulk action
 // set, so a stale or replayed Undo can't overwrite later triage.
 func (s *Server) issueBulkRestore(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.loadProject(w, r)
+	p, _, ok := s.loadProject(w, r, accessMember)
 	if !ok {
 		return
 	}

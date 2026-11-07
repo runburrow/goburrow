@@ -31,6 +31,34 @@
 .code-scroll.is-tall pre.code { border: 0; border-radius: 0; overflow: visible; }
 .code-scroll.is-tall:focus-visible { outline-offset: 2px; }
 
+/* Row lists: teams, members, invites, users ------------------------------ */
+.rows { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--border); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px 20px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.row-title { font-weight: 600; overflow-wrap: anywhere; }
+a.row-title { color: var(--text); }
+.row-meta { flex: none; color: var(--muted); font-size: var(--fs-1); }
+.row-meta .count-hot { font-family: var(--mono); }
+.row-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: none; }
+.inline-form { display: flex; align-items: center; gap: 6px; }
+.inline-form select { min-height: 34px; padding-block: 4px; }
+/* An inline confirmation: the summary is the button, the form opens below. */
+.row-confirm > summary { list-style: none; }
+.row-confirm > summary::-webkit-details-marker { display: none; }
+.row-confirm[open] { flex-basis: 100%; order: 9; }
+.row-confirm[open] > summary { background: var(--surface-2); }
+.row-confirm form { max-width: 44ch; margin-top: 10px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); }
+.row-confirm form p { margin: 0; }
+.team-group { margin: 28px 0 10px; font-size: var(--fs-3); }
+.team-group:first-of-type { margin-top: 8px; }
+.invite-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; max-width: 760px; margin-top: 14px; }
+.invite-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 500; }
+.invite-form label:first-of-type { flex: 1 1 280px; }
+.invite-help { margin: 8px 0 0; }
+.row > .pill { align-self: flex-start; }
+.auth-note { margin-top: 18px; }
+.owner-note { margin: 24px 0 0; }
+
 /* Webhooks --------------------------------------------------------------- */
 .webhook-list { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--border); }
 .webhook { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -76,6 +104,7 @@
   .project-row .figure { font-size: var(--fs-2); }
   .settings-actions { flex-direction: column; }
   .delete-form button { width: 100%; }
-  .webhook { flex-direction: column; align-items: stretch; }
+  .webhook, .row { flex-direction: column; align-items: stretch; }
+  .row-actions { justify-content: flex-start; }
   .webhook-actions > form, .webhook-actions button { flex: 1; width: 100%; }
 }

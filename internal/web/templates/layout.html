@@ -58,12 +58,23 @@
         <span>Settings</span>
       </a>
       {{end}}
+      {{$teams := or (eq .Nav.Page "teams") (eq .Nav.Page "team") (eq .Nav.Page "team_new")}}
+      <a class="rail-item {{if $teams}}active{{end}}" {{if $teams}}aria-current="page"{{end}} href="/teams">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 13.7c.5-.1 1-.2 1.5-.2 2.5 0 4 1.7 4 4.5"/></svg>
+        <span>Teams</span>
+      </a>
+      {{if .Session.User.IsAdmin}}
+      <a class="rail-item {{if eq .Nav.Page "admin_users"}}active{{end}}" {{if eq .Nav.Page "admin_users"}}aria-current="page"{{end}} href="/admin/users">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.4 3.4 8 8 9 4.6-1 8-4.6 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg>
+        <span>Users</span>
+      </a>
+      {{end}}
     </nav>
     <div class="rail-account">
       <a class="rail-help hide-narrow" href="https://github.com/runburrow/goburrow#readme" rel="noopener">Help and docs</a>
       <button type="button" class="link js-only rail-shortcuts" data-open-shortcuts aria-keyshortcuts="?">Keyboard shortcuts</button>
-      <span class="rail-email" title="{{.Session.User.Email}}">{{.Session.User.Email}}</span>
-      <form method="post" action="/logout">
+      <a class="rail-email {{if eq .Nav.Page "account"}}active{{end}}" href="/account" title="Your account: {{.Session.User.Email}}" {{if eq .Nav.Page "account"}}aria-current="page"{{end}}><span class="rail-email-full">{{.Session.User.Email}}</span><span class="rail-email-short">Account</span></a>
+      <form method="post" action="/logout" class="rail-logout">
         <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
         <button class="link">Log out</button>
       </form>

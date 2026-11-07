@@ -19,9 +19,20 @@ type loginThrottle struct {
 }
 
 const (
-	throttleMaxFailures = 10
-	throttleWindow      = 15 * time.Minute
+	throttleMaxFailures = 10 // per email: stops guessing one account's password
+	// Per client address the limit is higher: one office or proxy address
+	// can carry many people, and the email limit already stops guessing.
+	// It still stops one address spraying many accounts.
+	throttleMaxPerIP = 100
+	throttleWindow   = 15 * time.Minute
 )
+
+func limitFor(key string) int {
+	if strings.HasPrefix(key, "ip:") {
+		return throttleMaxPerIP
+	}
+	return throttleMaxFailures
+}
 
 func newLoginThrottle(now func() time.Time) *loginThrottle {
 	return &loginThrottle{failures: map[string][]time.Time{}, now: now}
@@ -60,7 +71,7 @@ func (t *loginThrottle) blocked(keys []string) (bool, time.Duration) {
 	now := t.now()
 	for _, k := range keys {
 		recent := t.prune(k, now)
-		if len(recent) >= throttleMaxFailures {
+		if len(recent) >= limitFor(k) {
 			return true, recent[0].Add(throttleWindow).Sub(now)
 		}
 	}

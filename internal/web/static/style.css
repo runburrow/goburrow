@@ -79,7 +79,9 @@ button, input, select, textarea { font: inherit; }
 .rail-item:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
 .rail-item.active { color: var(--text); background: var(--surface-2); font-weight: 600; }
 .rail-account { margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--border); font-size: var(--fs-1); }
-.rail-email { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.rail-email { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); text-decoration: none; }
+.rail-email:hover, .rail-email.active { color: var(--text); text-decoration: underline; }
+.rail-email-short { display: none; }
 .rail-account form { margin-top: 4px; }
 main.main, main { min-width: 0; padding: 28px 32px 56px; }
 .main:focus { outline: 0; }
@@ -238,7 +240,13 @@ table { border-collapse: collapse; width: 100%; }
   .rail-nav { flex-direction: row; }
   .rail-item { min-height: 44px; }
   .rail-account { display: flex; align-items: center; margin: 0 0 0 auto; padding: 0; border: 0; }
-  .rail-email, .hide-narrow { display: none; }
+  .hide-narrow { display: none; }
+  /* On phones the account link is a short word beside Log out. */
+  .rail-email { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; white-space: nowrap; }
+  .rail-email-full { display: none; }
+  .rail-email-short { display: inline; }
+  /* Log out lives on the Account page on phones, so the bar fits. */
+  .rail-logout { display: none; }
   .tab { gap: 5px; font-size: var(--fs-1); }
   .tab-count { padding: 0 5px; }
   .rail-account form { margin: 0; }
@@ -257,4 +265,8 @@ table { border-collapse: collapse; width: 100%; }
 @media (forced-colors: active) {
   .bar { background: CanvasText; }
   .level-label::before { border-color: CanvasText; }
+}
+@media (max-width: 420px) {
+  .rail-item .icon { display: none; }
+  .rail-item { padding-inline: 8px; }
 }

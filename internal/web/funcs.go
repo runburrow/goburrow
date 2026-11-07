@@ -37,6 +37,7 @@ var funcs = template.FuncMap{
 	"trackNumber":     trackNumber,
 	"comma":           comma,
 	"platformName":    platformName,
+	"until":           until,
 	"activitySummary": activitySummary,
 	"seq": func(n int) []int {
 		s := make([]int, n)
@@ -289,4 +290,19 @@ func inlineCode(s string) template.HTML {
 		}
 	}
 	return template.HTML(b.String())
+}
+
+// until says how long until t, for invite expiry ("in 3 days").
+func until(t time.Time) string {
+	d := time.Until(t)
+	switch {
+	case d <= 0:
+		return "now"
+	case d < time.Hour:
+		return fmt.Sprintf("in %dm", int(d.Minutes())+1)
+	case d < 48*time.Hour:
+		return fmt.Sprintf("in %dh", int(d.Hours()))
+	default:
+		return fmt.Sprintf("in %d days", int(d.Hours()/24))
+	}
 }

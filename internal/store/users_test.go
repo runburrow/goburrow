@@ -22,7 +22,7 @@ func TestFirstUserOnlyOnce(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			_, errs[i] = st.CreateFirstUser(context.Background(), "admin@burrow.test", "long-enough-pw")
+			_, errs[i] = st.Setup(context.Background(), "admin@burrow.test", "long-enough-pw", "")
 		}(i)
 	}
 	wg.Wait()
@@ -46,7 +46,7 @@ func TestSessionTokensStoredHashed(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	u, _ := st.CreateFirstUser(ctx, "admin@burrow.test", "long-enough-pw")
+	u, _ := st.Setup(ctx, "admin@burrow.test", "long-enough-pw", "")
 	sess, err := st.CreateSession(ctx, u.ID, time.Hour)
 	if err != nil {
 		t.Fatal(err)

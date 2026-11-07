@@ -203,6 +203,7 @@
     {{else}}<p class="muted">No retained events.</p>{{end}}
   </section>
 
+  {{if .Data.CanManage}}
   <details class="side-section danger-details">
     <summary>Delete issue</summary>
     <form method="post" action="/issues/{{$i.ID}}/delete" class="stack">
@@ -212,6 +213,7 @@
       <button type="submit" class="destructive">Delete issue</button>
     </form>
   </details>
+  {{end}}
 </aside>
 </div>
 {{end}}

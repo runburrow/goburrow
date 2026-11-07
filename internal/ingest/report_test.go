@@ -27,7 +27,7 @@ func reportServerWithHandler(t *testing.T) (*httptest.Server, *store.Store, *sto
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
-	p, err := st.CreateProject(context.Background(), "Obby", "roblox")
+	p, err := st.CreateProject(context.Background(), 0, "Obby", "roblox")
 	if err != nil {
 		t.Fatal(err)
 	}

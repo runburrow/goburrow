@@ -11,6 +11,12 @@ Thanks for digging in! 🦊
   `migrations` list. Add a new one.
 - **No inline scripts or styles.** The dashboard runs under a strict CSP. Put JS in
   `internal/web/static/app.js` and CSS in `style.css`.
+- **Every new route goes through `internal/web/authz.go`.** Use `loadProject`, `loadIssue`,
+  or `loadTeam` with the access level the action needs. Outsiders must get 404, not 403.
+  Add a case to `TestTeamsAndAccessControl` for anything new.
+- **Accessibility is not optional.** Text colors need 4.5:1 contrast on every surface they
+  sit on, interactive things need a visible `:focus-visible` state, and color is never the
+  only signal.
 - **Run checks before pushing:** `gofmt -l .`, `go vet ./...`, `go test -race ./...`
 
 ## Where things live

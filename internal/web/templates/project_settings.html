@@ -41,7 +41,11 @@
   {{if eq .Flash "webhook-limit"}}<p class="alert error" role="alert">A project can have up to {{.Data.MaxWebhooks}} webhooks. Remove one to add another.</p>{{end}}
   {{if eq .Flash "webhook-tested"}}{{with .Data.TestResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}{{end}}
   <p class="muted">Burrow posts here when an issue is new or comes back after being resolved. Slack, Discord and Mattermost webhook URLs work as they are.</p>
-  {{if .Data.Webhooks}}
+  {{if not .Data.CanManage}}
+  {{/* A webhook URL is a credential (anyone holding it can post to that
+     channel), so only owners see them. */}}
+  <p class="webhook-empty">{{with len .Data.Webhooks}}{{.}} {{plural . "webhook is" "webhooks are"}} set up.{{else}}No webhooks yet.{{end}} Team owners manage them.</p>
+  {{else if .Data.Webhooks}}
   <ul class="webhook-list">
     {{range .Data.Webhooks}}
     <li class="webhook" id="webhook-{{.ID}}">
@@ -67,7 +71,7 @@
   {{else}}
   <p class="webhook-empty">No webhooks yet. Without one, new issues only show up here in the dashboard.</p>
   {{end}}
-  {{if lt (len .Data.Webhooks) .Data.MaxWebhooks}}
+  {{if and .Data.CanManage (lt (len .Data.Webhooks) .Data.MaxWebhooks)}}
   <form method="post" action="/projects/{{$p.Slug}}/webhooks" class="webhook-form">
     <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
     <label for="webhook-url"><span>Webhook URL</span>
@@ -83,6 +87,7 @@
   {{end}}
 </section>
 
+{{if .Data.CanManage}}
 <section class="panel danger-zone" aria-labelledby="danger-heading">
   <h2 id="danger-heading">Delete project</h2>
   <p class="muted">Deletes this project and all of its issues and events. This can't be undone.</p>
@@ -94,6 +99,9 @@
     <button class="destructive" type="submit">Delete project</button>
   </form>
 </section>
+{{else}}
+<p class="muted small owner-note">Only owners of this project's team can rotate its key, manage webhooks or delete it.</p>
+{{end}}
 {{end}}
 
 {{define "dsn-panel"}}
@@ -151,6 +159,7 @@
       <span>Send test event</span>
     </button>
   </form>
+  {{if .Data.CanManage}}
   <details class="rotate-details">
     <summary class="button">
       <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="6.5" cy="11.5" r="3.5"/><path d="m9 9 7-7m-2 2 2 2m-4.5.5 2 2"/></svg>
@@ -163,6 +172,7 @@
       <button type="submit" class="destructive">Rotate key</button>
     </form>
   </details>
+  {{end}}
 </div>
 <p class="help settings-help">Send test event creates a sample issue so you can check the setup.</p>
 {{end}}
