@@ -72,7 +72,7 @@ func WebhookFormatLabel(u string) string {
 // card is what every format shows about one alert.
 type card struct {
 	Kind        string // new_issue, regression, test
-	Headline    string // "Regression in Shop"
+	Headline    string // "Regression · Shop": the card's first line
 	Project     string
 	Title       string
 	Culprit     string
@@ -90,14 +90,14 @@ func cardFor(a mail.Alert, kind string) card {
 	if a.Regression {
 		verb, kind = "Regression", "regression"
 	}
-	c := card{Kind: kind, Headline: verb + " in " + a.Project, Project: a.Project, Title: a.Title, Culprit: a.Culprit,
+	c := card{Kind: kind, Headline: verb + " · " + a.Project, Project: a.Project, Title: a.Title, Culprit: a.Culprit,
 		Level: a.Level, Environment: a.Environment, Release: a.Release, TimesSeen: a.TimesSeen, URL: a.IssueURL}
 	if n := len(a.Activity); n > 0 {
 		c.Today = a.Activity[n-1]
 	}
 	if a.Test {
-		c.Kind, c.Headline = "test", "Test alert for "+a.Project
-		c.Note = "New issues and regressions in " + a.Project + " will look like this."
+		c.Kind, c.Headline = "test", "Test alert · "+a.Project
+		c.Note = "This is a test. Real alerts look like this."
 	}
 	return c
 }
@@ -188,7 +188,9 @@ func (d *Dispatcher) richPayload(format string, c card) []byte {
 	}
 	switch format {
 	case FormatDiscord:
-		// Embeds never ping anyone; allowed_mentions covers the content line.
+		// The sender (Burrow, with the fox avatar) is the branding; the card
+		// itself carries only the issue. Embeds never ping anyone, and
+		// allowed_mentions makes sure of it.
 		var fields []field
 		for _, f := range facts {
 			fields = append(fields, field{Name: f[0], Value: clip(f[1], 1024), Inline: true})
@@ -200,15 +202,13 @@ func (d *Dispatcher) richPayload(format string, c card) []byte {
 		body, _ := json.Marshal(map[string]any{
 			"username":   "Burrow",
 			"avatar_url": icon,
-			"content":    "🦊 " + inert(c.Headline),
 			"embeds": []map[string]any{{
-				"author":      map[string]any{"name": clip(c.Project, 256), "icon_url": icon},
+				"author":      map[string]any{"name": clip(c.Headline, 256)},
 				"title":       clip(c.Title, 256),
 				"url":         c.URL,
 				"description": desc,
 				"color":       c.colour(),
 				"fields":      fields,
-				"footer":      map[string]any{"text": "Burrow", "icon_url": icon},
 				"timestamp":   time.Now().UTC().Format(time.RFC3339),
 			}},
 			"allowed_mentions": map[string]any{"parse": []string{}},
@@ -228,22 +228,20 @@ func (d *Dispatcher) richPayload(format string, c card) []byte {
 		if c.Note != "" {
 			text = strings.TrimSpace(slackEscape(c.Note) + "\n" + text)
 		}
-		fallback := "🦊 " + slackEscape(c.Headline) + ": " + slackEscape(clip(c.Title, 200))
+		// No top-level text: it would repeat the card. Notifications use
+		// the fallback line instead.
+		fallback := slackEscape(c.Headline) + ": " + slackEscape(clip(c.Title, 200))
 		body, _ := json.Marshal(map[string]any{
 			"username": "Burrow",
 			"icon_url": icon,
-			"text":     "🦊 " + slackEscape(c.Headline),
 			"attachments": []map[string]any{{
 				"fallback":    fallback,
 				"color":       fmt.Sprintf("#%06x", c.colour()),
-				"author_name": "Burrow · " + slackEscape(c.Project),
-				"author_icon": icon,
+				"author_name": slackEscape(c.Headline),
 				"title":       slackEscape(clip(c.Title, 256)),
 				"title_link":  c.URL,
 				"text":        text,
 				"fields":      fields,
-				"footer":      "Burrow",
-				"footer_icon": icon,
 				"ts":          time.Now().Unix(),
 				"mrkdwn_in":   []string{"text"},
 			}},

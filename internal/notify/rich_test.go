@@ -51,8 +51,8 @@ func TestDiscordEmbedIsBranded(t *testing.T) {
 	if got["username"] != "Burrow" || got["avatar_url"] != brandIcon {
 		t.Errorf("should post as Burrow with the fox from goburrow.net on a LAN install: %v %v", got["username"], got["avatar_url"])
 	}
-	if c, _ := got["content"].(string); !strings.Contains(c, "Regression in Shop") {
-		t.Errorf("content = %q", c)
+	if _, ok := got["content"]; ok {
+		t.Error("no content line: it repeats the card")
 	}
 	if am := got["allowed_mentions"].(map[string]any)["parse"].([]any); len(am) != 0 {
 		t.Errorf("allowed_mentions = %v", am)
@@ -61,8 +61,11 @@ func TestDiscordEmbedIsBranded(t *testing.T) {
 	if e["color"].(float64) != 0xe5322d || e["url"] != "https://burrow.test/issues/3" {
 		t.Errorf("regression should be red and link the issue: %v %v", e["color"], e["url"])
 	}
-	if e["footer"].(map[string]any)["text"] != "Burrow" || e["author"].(map[string]any)["name"] != "Shop" {
-		t.Errorf("footer/author = %v / %v", e["footer"], e["author"])
+	if _, ok := e["footer"]; ok {
+		t.Error("no footer: the sender already says Burrow")
+	}
+	if author := e["author"].(map[string]any); author["name"] != "Regression · Shop" || author["icon_url"] != nil {
+		t.Errorf("author = %v", author)
 	}
 	if e["description"] != "`cart/'summary'.ts in total`" {
 		t.Errorf("culprit should be one safe code span: %q", e["description"])
@@ -84,8 +87,16 @@ func TestSlackAttachmentIsBrandedAndEscaped(t *testing.T) {
 		t.Errorf("a public Burrow serves its own fox: %v %v", got["username"], got["icon_url"])
 	}
 	a := got["attachments"].([]any)[0].(map[string]any)
-	if a["color"] != "#a9a79e" || a["footer"] != "Burrow" || a["title_link"] != "https://burrow.test/issues/3" || a["author_name"] != "Burrow · Shop" {
+	if a["color"] != "#a9a79e" || a["title_link"] != "https://burrow.test/issues/3" || a["author_name"] != "New issue · Shop" || a["fallback"] == nil {
 		t.Errorf("attachment = %v", a)
+	}
+	for _, k := range []string{"footer", "footer_icon", "author_icon"} {
+		if _, ok := a[k]; ok {
+			t.Errorf("attachment still has %s", k)
+		}
+	}
+	if _, ok := got["text"]; ok {
+		t.Error("no top-level text: it repeats the card")
 	}
 	for _, bad := range []string{"<!channel>", "@everyone"} {
 		if strings.Contains(string(raw), bad) {
@@ -96,7 +107,7 @@ func TestSlackAttachmentIsBrandedAndEscaped(t *testing.T) {
 
 func TestTestCardExplainsItself(t *testing.T) {
 	c := cardFor(mail.Alert{Project: "Shop", Title: "Error: sample", Level: "error", Test: true, IssueURL: "https://x"}, "test")
-	if c.Headline != "Test alert for Shop" || !strings.Contains(c.Note, "will look like this") || c.events() != "" {
+	if c.Headline != "Test alert · Shop" || c.Note != "This is a test. Real alerts look like this." || c.events() != "" {
 		t.Errorf("test card = %+v", c)
 	}
 }
@@ -118,7 +129,7 @@ func TestSendTestDeliversRichCard(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := body["attachments"].([]any)[0].(map[string]any)
-	if body["username"] != "Burrow" || a["footer"] != "Burrow" || !strings.Contains(a["text"].(string), "will look like this") {
+	if body["username"] != "Burrow" || a["author_name"] != "Test alert · Shop" || !strings.Contains(a["text"].(string), "Real alerts look like this") {
 		t.Errorf("test card = %s", got)
 	}
 	// A custom endpoint still gets the plain JSON with the burrow block.
