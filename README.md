@@ -3,7 +3,8 @@
 **Lightweight, self-hosted, open-source error tracking that works with the Sentry SDKs you already use.**
 
 Burrow is a single ~14 MB binary with an embedded dashboard and SQLite storage.
-There's no Redis, no Kafka, no ClickHouse, and no 16 GB RAM requirement. Point your existing
+There's no Redis, no Kafka and no ClickHouse. It idles at about 15 MB of memory and
+handles over 1,500 events a second on one CPU core. Point your existing
 Sentry SDK's DSN at it and your errors show up, grouped into issues, with stack
 traces, breadcrumbs, tags and user context.
 
@@ -96,6 +97,34 @@ Every option can be set with a flag or an environment variable.
 | `BURROW_BASE_URL` | `-base-url` | `http://localhost<addr>` | Public URL. It goes into DSNs and alert links, and `https://` enables secure cookies. **Set this in production.** |
 | `BURROW_RETENTION_DAYS` | `-retention-days` | `30` | Delete events older than this. `0` keeps them forever. |
 | `BURROW_WEBHOOK_URL` | `-webhook-url` | | Fallback webhook for projects that have none of their own in settings |
+
+## System requirements
+
+| | Minimum | Recommended |
+|---|---|---|
+| CPU | 1 core | 1 core is plenty below ~1,000 events/s |
+| Memory | 64 MB | 256 MB, so the OS can cache the database |
+| Disk | SSD, ~5 KB per stored event | SSD with room for your retention window |
+| OS | Linux (measured on amd64) | Pure Go, so it also builds for arm64, macOS and Windows |
+
+What it uses, measured with realistic Python SDK events (4.5 KB each, with stack
+frames, source context, locals and breadcrumbs):
+
+| | |
+|---|---|
+| Memory | ~15 MB idle, 25–30 MB at full ingest speed, ~45 MB with 300k events stored |
+| CPU | 0.4–0.9 ms per event, so 50 events/s is about 3% of one core |
+| Throughput | ~1,750 events/s on 1 core, ~2,150 on 2 or more (one SQLite writer) |
+| Disk | ~5.1 KiB per event |
+| Startup | under 0.1 s |
+
+**Sizing the disk:** events per day × retention days × 5 KB. For example, 10,000 events a
+day kept for 30 days is about 1.5 GB. Retention frees space for new events, but the file
+doesn't shrink; run `sqlite3 burrow.db VACUUM` while Burrow is stopped to reclaim it.
+
+Keep the database on a local disk, not NFS/SMB (SQLite locking) or a RAM-backed `/tmp`
+(it would count against memory). Full numbers and how to reproduce them are in
+[docs/benchmarks.md](docs/benchmarks.md).
 
 ### Running in production
 

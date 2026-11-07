@@ -192,12 +192,13 @@ end)</pre>
 <section class="section" aria-labelledby="small-title">
   <div class="wrap">
     <h2 id="small-title">Small on purpose.</h2>
-    <p class="section-lead">The error tracker you can run on a $5 VPS and forget about. One process, one file of state.</p>
+    <p class="section-lead">The error tracker you can run on a $5 VPS and forget about. One process, one file of state, about 15 MB of memory.</p>
     <div class="label">
       <div class="label-head"><span class="wordmark">burrow</span><span class="muted">Self-hosted error tracker</span><span class="label-barcode" aria-hidden="true" data-barcode></span></div>
       <dl>
       <div class="label-row"><dt>Ships as</dt><dd><span class="figure">1 binary, ~14 MB</span><br><span class="muted">Dashboard embedded. Or a non-root, distroless container.</span></dd></div>
-      <div class="label-row"><dt>Stores data in</dt><dd><span class="figure">1 SQLite file</span><br><span class="muted">Old events are pruned after 30 days by default.</span></dd></div>
+      <div class="label-row"><dt>Memory</dt><dd><span class="figure">~15 MB idle</span><br><span class="muted">Under 30 MB while taking 1,700 events a second on one CPU core.</span></dd></div>
+      <div class="label-row"><dt>Stores data in</dt><dd><span class="figure">1 SQLite file</span><br><span class="muted">About 5 KB per event. Old events are pruned after 30 days by default.</span></dd></div>
       <div class="label-row"><dt>Also needs</dt><dd><span class="figure">Nothing</span><br><span class="muted">No Redis, Kafka, ClickHouse, or separate database server.</span></dd></div>
       <div class="label-row"><dt>Security defaults</dt><dd>bcrypt passwords, CSRF tokens, a strict Content Security Policy, SameSite cookies.</dd></div>
       <div class="label-row"><dt>License</dt><dd>MIT</dd></div>

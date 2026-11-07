@@ -13,12 +13,12 @@ Solo developers and small teams who self-host Burrow (confirmed by owner). They 
 Lightweight, self-hosted, open-source error tracking that works with the Sentry SDKs teams already use. Success: an error sent from an existing Sentry SDK shows up, grouped into one issue, with enough context (stack frames, breadcrumbs, tags, user, request) to fix it, without running Redis, Kafka, or ClickHouse.
 
 ## Positioning
-A single ~14 MB binary with an embedded dashboard and SQLite storage ("the error tracker you can run on a $5 VPS and forget about"). Small and understandable rather than feature-parity with Sentry. Sentry-SDK compatible by implementing the public ingestion protocol.
+A single ~14 MB binary with an embedded dashboard and SQLite storage ("the error tracker you can run on a $5 VPS and forget about"). Measured: ~15 MB of memory idle, under 30 MB while ingesting ~1,750 events/s on one core, ~5 KB of disk per event (docs/benchmarks.md). Small and understandable rather than feature-parity with Sentry. Sentry-SDK compatible by implementing the public ingestion protocol.
 
 ## Operating Context
 - Server-rendered Go html/template pages; no JS build chain; pages must work with JavaScript disabled (app.js is progressive enhancement only).
 - Strict CSP: no inline scripts or third-party hosts; assets are embedded in the binary.
-- Screens: setup (first-run admin account), login, projects list, new project, project settings (DSN, key rotation, webhook, test event), issues list (search, sort, status), issue detail (chained exceptions, frames with source context and locals, breadcrumbs, request, user, tags, contexts, raw JSON, 14-day activity chart; resolve/ignore/delete), error page.
+- Screens: setup (first-run admin account), login, projects list, new project, project settings (setup steps per platform, DSN, report API, key rotation, webhooks, test event), issues list (search, sort, status), issue detail (chained exceptions, frames with source context and locals, breadcrumbs, request, user, tags, contexts, raw JSON, 14-day activity chart; resolve/ignore/delete), error page.
 - Issue states: unresolved, resolved, ignored; a resolved issue that recurs reopens as a regression. Levels: fatal, error, warning, info, debug.
 - Light and dark colour schemes follow the OS setting.
 

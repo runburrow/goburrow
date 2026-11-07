@@ -9,9 +9,16 @@ services:
       # The URL your apps and browser will use to reach Burrow. It goes into DSNs.
       BURROW_BASE_URL: http://localhost:8000
       BURROW_RETENTION_DAYS: "30"
+      # Fallback for projects without webhooks of their own (set those in project settings).
       # BURROW_WEBHOOK_URL: https://hooks.slack.com/services/...
     volumes:
       - burrow-data:/data
+    # Burrow uses ~15 MB idle and under 50 MB busy (docs/benchmarks.md).
+    # The extra headroom lets the OS cache the database.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   burrow-data:
