@@ -2,7 +2,7 @@
 <header class="pagehead">
   <div class="pagehead-copy">
     <h1>Your account</h1>
-    <p class="muted">{{.Session.User.Email}}{{if .Session.User.IsAdmin}} · instance admin{{end}}</p>
+    <p class="muted">{{.Session.User.Email}}{{if .Session.CanElevate}} · instance admin{{end}}</p>
   </div>
 </header>
 

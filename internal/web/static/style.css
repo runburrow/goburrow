@@ -72,6 +72,8 @@ button, input, select, textarea { font: inherit; }
 .topbar-sep { color: var(--muted); }
 .project-crumb { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; text-decoration: none; }
 .project-crumb:hover { text-decoration: underline; }
+.topbar-admin { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.pill.elevated { color: var(--blue); border-color: var(--blue); font-weight: 600; text-transform: none; }
 .app-shell { display: grid; grid-template-columns: 196px minmax(0, 1fr); min-height: calc(100svh - 61px); }
 .rail { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; height: calc(100svh - 60px); padding: 18px 12px; border-right: 1px solid var(--border); }
 .rail-nav { display: flex; flex-direction: column; gap: 2px; }

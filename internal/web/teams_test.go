@@ -26,6 +26,15 @@ func (h *harness) as() *harness {
 var inviteRe = regexp.MustCompile(`<code id="invite-url">[^<]*/invite/([0-9a-f]+)</code>`)
 
 // invite creates an invite on team as h and returns the token.
+// elevate switches an instance admin to Instance Admin.
+func (h *harness) elevate() {
+	h.t.Helper()
+	h.get("/account")
+	if code, _ := h.post("/account/instance-admin", url.Values{}); code != 200 {
+		h.t.Fatalf("switch to Instance Admin = %d", code)
+	}
+}
+
 func (h *harness) invite(team, role, email string) string {
 	h.t.Helper()
 	h.get("/teams/" + team)
@@ -119,7 +128,7 @@ func TestTeamsAndAccessControl(t *testing.T) {
 	if role, _ := admin.st.TeamRole(context.Background(), 1, bob); role != store.RoleMember {
 		t.Errorf("member managed to change their role to %q", role)
 	}
-	if code, body := member.get("/projects/new"); code != 200 || !strings.Contains(body, "Only team owners") {
+	if code, body := member.get("/projects/new"); code != 200 || !strings.Contains(body, "Only team admins") {
 		t.Errorf("member should see the owner-only notice on /projects/new")
 	}
 	if _, body := member.get(issuePath); strings.Contains(body, `/delete"`) {
@@ -144,16 +153,74 @@ func TestTeamsAndAccessControl(t *testing.T) {
 		t.Errorf("outsider created a project in someone else's team: %d", code)
 	}
 
-	// The last owner can't be demoted.
+	// Team "Other" has two owners: root created it, carol was invited as
+	// owner. Carol can't touch the creator: not demote, remove or replace.
+	if _, body := outsider.get("/teams/other"); !strings.Contains(body, ">Creator</span>") || strings.Contains(body, `action="/teams/other/members/1/`) || strings.Contains(body, "Make creator") || strings.Contains(body, "Delete team") {
+		t.Errorf("owners should see the creator labelled, with no controls for them")
+	}
+	for path, form := range map[string]url.Values{
+		"/teams/other/members/1/role":   {"role": {"member"}},
+		"/teams/other/members/1/remove": {},
+	} {
+		if code, _ := outsider.post(path, form); code != 409 {
+			t.Errorf("owner POST %s on the creator = %d, want 409", path, code)
+		}
+	}
+	if code, _ := outsider.post("/teams/other/delete", url.Values{"confirm": {"other"}}); code != 403 {
+		t.Errorf("owner deleting the creator's team = %d, want 403", code)
+	}
+	if code, _ := outsider.post("/teams/other/creator", url.Values{"user": {fmt.Sprint(carol)}}); code != 403 {
+		t.Errorf("owner taking the creator role = %d, want 403", code)
+	}
+	if tm, _ := admin.st.TeamBySlug(context.Background(), "other"); tm.CreatorID != 1 {
+		t.Fatalf("creator changed to %d", tm.CreatorID)
+	}
+	// The creator hands it to carol. Now carol may demote root, but then
+	// can't demote herself: the last owner can't be demoted.
 	admin.get("/teams/other")
-	// Team "Other" has two owners (root created it, carol was invited as
-	// owner). Carol may demote root, but then can't demote herself.
+	if code, _ := admin.post("/teams/other/creator", url.Values{"user": {fmt.Sprint(carol)}}); code != 200 {
+		t.Fatalf("creator transfer = %d", code)
+	}
 	outsider.get("/teams/other")
 	if code, _ := outsider.post("/teams/other/members/1/role", url.Values{"role": {"member"}}); code != 200 {
 		t.Errorf("demoting a co-owner = %d, want 200", code)
 	}
 	if code, _ := outsider.post(fmt.Sprintf("/teams/other/members/%d/role", carol), url.Values{"role": {"member"}}); code != 409 {
 		t.Errorf("demoting the last owner = %d, want 409", code)
+	}
+	// An instance admin who hasn't switched is just a regular user here:
+	// root is now a plain member of Other.
+	admin.get("/teams/other")
+	if code, _ := admin.post("/teams/other/creator", url.Values{"user": {"1"}}); code != 403 {
+		t.Errorf("unswitched admin taking the creator role = %d, want 403", code)
+	}
+	if code, body := admin.get("/admin/users"); code != 403 || !strings.Contains(body, "Switch to Instance Admin") {
+		t.Errorf("unswitched admin on the Users page = %d", code)
+	}
+	if _, body := admin.get("/teams"); !strings.Contains(body, "⇄ Switch to Instance Admin") || strings.Contains(body, `href="/admin/users"`) {
+		t.Error("unswitched admin should get the switch, not the Users link")
+	}
+	if _, body := member.get("/teams"); strings.Contains(body, "Switch to Instance Admin") {
+		t.Error("non-admins must not see the switch")
+	}
+	if code, _ := member.post("/account/instance-admin", url.Values{}); code != 404 {
+		t.Errorf("non-admin switching = %d, want 404", code)
+	}
+
+	// Switched, admins can reassign it even when they're not the creator.
+	admin.elevate()
+	if _, body := admin.get("/teams"); !strings.Contains(body, "⇄ Switch back") || !strings.Contains(body, `href="/admin/users"`) {
+		t.Error("switched admin should see Switch back and the Users link")
+	}
+	admin.get("/teams/other")
+	if code, _ := admin.post("/teams/other/creator", url.Values{"user": {"1"}}); code != 200 {
+		t.Errorf("admin taking the creator role back = %d", code)
+	}
+	if tm, _ := admin.st.TeamBySlug(context.Background(), "other"); tm.CreatorID != 1 {
+		t.Errorf("admin transfer didn't stick: creator %d", tm.CreatorID)
+	}
+	if r, _ := admin.st.TeamRole(context.Background(), otherTeamID(admin), 1); r != store.RoleOwner {
+		t.Errorf("new creator should be an owner, is %q", r)
 	}
 
 	// Members can leave.
@@ -275,4 +342,9 @@ func TestTeamAccessOnNewerRoutes(t *testing.T) {
 	if is, _ := admin.st.IssueByID(ctx, issues[0].ID); is.Status != store.StatusResolved {
 		t.Errorf("outsider changed an issue: %s", is.Status)
 	}
+}
+
+func otherTeamID(h *harness) int64 {
+	t, _ := h.st.TeamBySlug(context.Background(), "other")
+	return t.ID
 }

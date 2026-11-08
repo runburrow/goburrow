@@ -143,6 +143,7 @@ func TestInviteEmailAndTestEmail(t *testing.T) {
 	}
 
 	// Admins can send a test email to themselves; others can't reach it.
+	admin.elevate()
 	if _, body := admin.get("/account"); !strings.Contains(body, "Send test email") || !strings.Contains(body, "(none), from alerts@burrow.test") {
 		t.Error("account page should show the setup and the button")
 	}

@@ -67,6 +67,9 @@ func TestMigrateV1ToTeams(t *testing.T) {
 	if role, _ := s.TeamRole(ctx, team.ID, u.ID); role != RoleOwner {
 		t.Errorf("existing user should own default team, got %q", role)
 	}
+	if team.CreatorID != u.ID {
+		t.Errorf("existing owner should become the default team's creator, got %d", team.CreatorID)
+	}
 	p, _ := s.ProjectBySlug(ctx, "legacy")
 	if p.TeamID != team.ID {
 		t.Errorf("legacy project not moved into default team")
@@ -110,11 +113,74 @@ func TestLastOwnerGuard(t *testing.T) {
 	if _, err := s.AcceptInvite(ctx, tok, b); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.SetMemberRole(ctx, team.ID, a.ID, RoleMember); !errors.Is(err, ErrCreator) {
+		t.Errorf("demoting the creator: %v", err)
+	}
+	if err := s.TransferCreator(ctx, team.ID, b.ID); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.SetMemberRole(ctx, team.ID, a.ID, RoleMember); err != nil {
 		t.Errorf("with two owners, demoting one should work: %v", err)
 	}
 	if err := s.RemoveMember(ctx, team.ID, b.ID); !errors.Is(err, ErrLastOwner) {
 		t.Errorf("b is now the only owner: %v", err)
+	}
+}
+
+func TestTeamCreator(t *testing.T) {
+	s := open(t)
+	a, b, c := mustUser(t, s, "a@x.co", false), mustUser(t, s, "b@x.co", false), mustUser(t, s, "c@x.co", false)
+	team, _ := s.CreateTeam(ctx, "T", a.ID)
+	for _, u := range []*User{b, c} {
+		tok, _ := s.CreateInvite(ctx, team.ID, RoleOwner, "", a.ID)
+		if _, err := s.AcceptInvite(ctx, tok, u); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, _ := s.TeamBySlug(ctx, team.Slug); got.CreatorID != a.ID {
+		t.Fatalf("creator %d, want %d", got.CreatorID, a.ID)
+	}
+	// Other owners can't demote or remove the creator, and neither can they.
+	if err := s.SetMemberRole(ctx, team.ID, a.ID, RoleMember); !errors.Is(err, ErrCreator) {
+		t.Errorf("demote creator: %v", err)
+	}
+	if err := s.RemoveMember(ctx, team.ID, a.ID); !errors.Is(err, ErrCreator) {
+		t.Errorf("remove creator: %v", err)
+	}
+	if err := s.SetMemberRole(ctx, team.ID, a.ID, RoleOwner); err != nil {
+		t.Errorf("setting the creator to owner is a no-op: %v", err)
+	}
+	members, _ := s.TeamMembers(ctx, team.ID)
+	if !members[0].IsCreator || members[0].User.ID != a.ID || members[0].Label() != RoleCreator || members[1].Label() != RoleOwner {
+		t.Errorf("creator should be listed first and labelled: %+v", members)
+	}
+	teams, _ := s.ListTeams(ctx, a.ID, false)
+	if teams[0].MyRole != RoleCreator {
+		t.Errorf("MyRole for the creator: %q", teams[0].MyRole)
+	}
+
+	// Handing it on: the new creator is promoted, the old one stays owner.
+	s.SetMemberRole(ctx, team.ID, c.ID, RoleMember)
+	if err := s.TransferCreator(ctx, team.ID, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := s.TeamRole(ctx, team.ID, c.ID); r != RoleOwner {
+		t.Errorf("new creator's role %q", r)
+	}
+	if err := s.RemoveMember(ctx, team.ID, a.ID); err != nil {
+		t.Errorf("former creator can leave: %v", err)
+	}
+	outsider := mustUser(t, s, "d@x.co", false)
+	if err := s.TransferCreator(ctx, team.ID, outsider.ID); !errors.Is(err, ErrNotMember) {
+		t.Errorf("transfer to a non-member: %v", err)
+	}
+
+	// Deleting the creator's account passes the team to the longest-standing owner.
+	if err := s.DeleteUser(ctx, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.TeamByID(ctx, team.ID); got.CreatorID != b.ID {
+		t.Errorf("creator after deleting theirs: %d, want %d", got.CreatorID, b.ID)
 	}
 }
 

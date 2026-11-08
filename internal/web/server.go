@@ -105,6 +105,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /teams/{team}/delete", s.authed(s.teamDelete))
 	mux.HandleFunc("POST /teams/{team}/members/{user}/role", s.authed(s.memberRole))
 	mux.HandleFunc("POST /teams/{team}/members/{user}/remove", s.authed(s.memberRemove))
+	mux.HandleFunc("POST /teams/{team}/creator", s.authed(s.teamTransferCreator))
 	mux.HandleFunc("POST /teams/{team}/invites", s.authed(s.inviteCreate))
 	mux.HandleFunc("POST /teams/{team}/invites/{invite}/revoke", s.authed(s.inviteRevoke))
 
@@ -114,6 +115,8 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("GET /account", s.authed(s.accountPage))
 	mux.HandleFunc("POST /account/password", s.authed(s.accountPassword))
 	mux.HandleFunc("POST /account/test-email", s.authed(s.adminOnly(s.accountTestEmail)))
+	mux.HandleFunc("POST /account/instance-admin", s.authed(s.instanceAdmin(true)))
+	mux.HandleFunc("POST /account/instance-admin/off", s.authed(s.instanceAdmin(false)))
 
 	mux.HandleFunc("GET /admin/users", s.authed(s.adminOnly(s.adminUsers)))
 	mux.HandleFunc("POST /admin/users/{user}/admin", s.authed(s.adminOnly(s.adminSetAdmin)))

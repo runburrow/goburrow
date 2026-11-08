@@ -43,8 +43,8 @@
   <p class="muted">Burrow posts here when an issue is new or comes back after being resolved. Discord, Slack, Mattermost and Rocket.Chat webhooks get a rich Burrow card with the issue's details; any other URL gets JSON.</p>
   {{if not .Data.CanManage}}
   {{/* A webhook URL is a credential (anyone holding it can post to that
-     channel), so only owners see them. */}}
-  <p class="webhook-empty">{{with len .Data.Webhooks}}{{.}} {{plural . "webhook is" "webhooks are"}} set up.{{else}}No webhooks yet.{{end}} Team owners manage them.</p>
+     channel), so only team admins see them. */}}
+  <p class="webhook-empty">{{with len .Data.Webhooks}}{{.}} {{plural . "webhook is" "webhooks are"}} set up.{{else}}No webhooks yet.{{end}} Team admins manage them.</p>
   {{else if .Data.Webhooks}}
   <ul class="webhook-list">
     {{range .Data.Webhooks}}
@@ -102,7 +102,7 @@
   {{if eq .Flash "email-tested"}}{{with .Data.EmailResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}{{end}}
   <p class="muted">Burrow emails these addresses when an issue is new or comes back after being resolved. Each address gets at most 20 alert emails an hour, so an error storm can't bury an inbox.</p>
   {{if not .Data.MailOn}}
-  <p class="webhook-empty">Email isn't set up on this server. An admin sets <code>BURROW_SMTP_HOST</code>, <code>BURROW_SMTP_FROM</code> and the other SMTP settings, then restarts Burrow.</p>
+  <p class="webhook-empty">Email isn't set up on this server. An instance admin sets <code>BURROW_SMTP_HOST</code>, <code>BURROW_SMTP_FROM</code> and the other SMTP settings, then restarts Burrow.</p>
   {{else if not .Data.CanManage}}
   <p class="webhook-empty">{{with len .Data.EmailAlerts}}{{.}} {{plural . "address gets" "addresses get"}} these alerts.{{else}}No one gets these alerts by email yet.{{end}} Team owners manage the list.</p>
   {{else}}
@@ -160,7 +160,7 @@
   </form>
 </section>
 {{else}}
-<p class="muted small owner-note">Only owners of this project's team can rotate its key, manage webhooks or delete it.</p>
+<p class="muted small owner-note">Only admins of this project's team can rotate its key, manage webhooks or delete it.</p>
 {{end}}
 {{end}}
 

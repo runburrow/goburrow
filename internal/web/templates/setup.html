@@ -1,8 +1,8 @@
 {{define "content"}}
 <section class="auth-card">
   <span class="auth-fox" aria-hidden="true">{{template "fox-peek" .}}</span>
-  <h1>Create the admin account</h1>
-  <p class="muted">The first account is the admin. This page closes once it exists; everyone else joins with an invite link.</p>
+  <h1>Create the first account</h1>
+  <p class="muted">The first account is the instance admin and creates the first team. This page closes once it exists; everyone else joins with an invite link.</p>
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/setup" class="stack">
     <label for="setup-email">Email

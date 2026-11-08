@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -67,6 +68,9 @@ func (s *Server) renderTeam(w http.ResponseWriter, r *http.Request, code int, in
 		"Members":   members,
 		"Projects":  projects,
 		"CanManage": a >= accessOwner,
+		// The creator (or an instance admin, in Instance Admin) can hand
+		// the creator role to someone else and delete the team.
+		"IsCreator": sess.User.IsAdmin || t.CreatorID == sess.User.ID,
 		"InviteURL": inviteURL,
 		"Error":     errMsg,
 		"Me":        sess.User.ID,
@@ -104,6 +108,10 @@ func (s *Server) teamDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess := sessionFrom(r.Context()); !sess.User.IsAdmin && t.CreatorID != sess.User.ID {
+		s.render(w, r, http.StatusForbidden, "error", "Not allowed", "Only the team's creator can delete the team.")
+		return
+	}
 	if r.PostFormValue("confirm") != t.Slug {
 		s.renderTeam(w, r, http.StatusBadRequest, "", "Type the team's slug exactly to confirm deleting it.")
 		return
@@ -125,7 +133,7 @@ func (s *Server) memberRole(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, store.ErrNotFound) {
 		s.notFound(w, r)
 		return
-	} else if errors.Is(err, store.ErrLastOwner) {
+	} else if errors.Is(err, store.ErrLastOwner) || errors.Is(err, store.ErrCreator) {
 		s.renderTeam(w, r, http.StatusConflict, "", err.Error())
 		return
 	} else if err != nil {
@@ -133,6 +141,34 @@ func (s *Server) memberRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/teams/"+t.Slug, http.StatusSeeOther)
+}
+
+// teamTransferCreator hands the creator role to another member. Only the
+// creator and instance admins may; other owners can't touch the creator.
+func (s *Server) teamTransferCreator(w http.ResponseWriter, r *http.Request) {
+	t, _, ok := s.loadTeam(w, r, accessMember)
+	if !ok {
+		return
+	}
+	sess := sessionFrom(r.Context())
+	if !sess.User.IsAdmin && t.CreatorID != sess.User.ID {
+		s.render(w, r, http.StatusForbidden, "error", "Not allowed", "Only the team's creator can hand the creator role to someone else.")
+		return
+	}
+	uid, _ := strconv.ParseInt(r.PostFormValue("user"), 10, 64)
+	if uid == t.CreatorID {
+		http.Redirect(w, r, "/teams/"+t.Slug, http.StatusSeeOther)
+		return
+	}
+	err := s.Store.TransferCreator(r.Context(), t.ID, uid)
+	if errors.Is(err, store.ErrNotMember) {
+		s.renderTeam(w, r, http.StatusBadRequest, "", err.Error())
+		return
+	} else if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/teams/"+t.Slug+"?flash=creator", http.StatusSeeOther)
 }
 
 // memberRemove: owners can remove anyone; anyone can remove themselves
@@ -149,7 +185,7 @@ func (s *Server) memberRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := s.Store.RemoveMember(r.Context(), t.ID, uid)
-	if errors.Is(err, store.ErrLastOwner) {
+	if errors.Is(err, store.ErrLastOwner) || errors.Is(err, store.ErrCreator) {
 		s.renderTeam(w, r, http.StatusConflict, "", err.Error())
 		return
 	} else if err != nil {
@@ -226,7 +262,7 @@ func (s *Server) invitePage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) renderInvite(w http.ResponseWriter, r *http.Request, code int, errMsg, email string) {
 	inv, err := s.Store.InviteByToken(r.Context(), r.PathValue("token"))
 	if errors.Is(err, store.ErrInviteUsed) {
-		s.render(w, r, http.StatusNotFound, "error", "Invite not valid", "This invite link has expired, was revoked, or has already been used. Ask a team owner for a new one.")
+		s.render(w, r, http.StatusNotFound, "error", "Invite not valid", "This invite link has expired, was revoked, or has already been used. Ask a team admin for a new one.")
 		return
 	} else if err != nil {
 		s.serverError(w, r, err)
@@ -352,7 +388,7 @@ func (s *Server) adminSetAdmin(w http.ResponseWriter, r *http.Request) {
 	uid, _ := strconv.ParseInt(r.PathValue("user"), 10, 64)
 	err := s.Store.SetAdmin(r.Context(), uid, r.PostFormValue("admin") == "1")
 	if errors.Is(err, store.ErrLastAdmin) {
-		s.renderAdminUsers(w, r, http.StatusConflict, "Burrow needs at least one admin. Make someone else an admin first.")
+		s.renderAdminUsers(w, r, http.StatusConflict, "Burrow needs at least one instance admin. Make someone else one first.")
 		return
 	} else if err != nil {
 		s.serverError(w, r, err)
@@ -375,11 +411,42 @@ func (s *Server) adminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.Store.DeleteUser(r.Context(), uid)
 	if errors.Is(err, store.ErrLastAdmin) {
-		s.renderAdminUsers(w, r, http.StatusConflict, "Burrow needs at least one admin.")
+		s.renderAdminUsers(w, r, http.StatusConflict, "Burrow needs at least one instance admin.")
 		return
 	} else if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/users?flash=deleted", http.StatusSeeOther)
+}
+
+// instanceAdmin switches an instance admin's session to Instance Admin for
+// store.ElevateFor, or back. Until then they act as a regular user, so
+// overriding a team's creator or managing accounts is always deliberate.
+func (s *Server) instanceAdmin(on bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sess := sessionFrom(r.Context())
+		if !sess.CanElevate {
+			s.notFound(w, r)
+			return
+		}
+		var until time.Time
+		if on {
+			// Real time, not s.now(): the store expires it against the clock.
+			until = time.Now().Add(store.ElevateFor)
+		}
+		if err := s.Store.SetElevated(r.Context(), sess.Token, until); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		s.Log.Info("instance admin mode", "user", sess.User.Email, "on", on)
+		next := "/"
+		if ref, err := url.Parse(r.Referer()); err == nil && (ref.Host == "" || ref.Host == r.Host) && strings.HasPrefix(ref.Path, "/") && !strings.HasPrefix(ref.Path, "//") {
+			next = ref.Path
+		}
+		if !on && strings.HasPrefix(next, "/admin/") {
+			next = "/"
+		}
+		http.Redirect(w, r, next, http.StatusSeeOther)
+	}
 }

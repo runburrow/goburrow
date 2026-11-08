@@ -103,7 +103,7 @@ func emailResultMessage(code string) map[string]any {
 	case "ok":
 		return map[string]any{"OK": true, "Text": "Sent. It can take a minute to arrive; check the spam folder if it doesn't."}
 	case "off":
-		return map[string]any{"Text": "Email isn't set up on this server. An admin can set BURROW_SMTP_HOST and the other SMTP settings, then restart Burrow."}
+		return map[string]any{"Text": "Email isn't set up on this server. An instance admin can set BURROW_SMTP_HOST and the other SMTP settings, then restart Burrow."}
 	case "auth":
 		return map[string]any{"Text": "The SMTP server refused the username or password. Check BURROW_SMTP_USERNAME and BURROW_SMTP_PASSWORD."}
 	case "rejected":

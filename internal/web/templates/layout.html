@@ -37,6 +37,19 @@
   <span class="topbar-sep" aria-hidden="true">/</span>
   <a class="project-crumb" href="/projects/{{.Slug}}">{{.Name}}</a>
   {{end}}{{end}}
+  {{if .Session}}{{if .Session.CanElevate}}
+  {{/* Instance admins act as regular users until they switch, so overriding
+     a team's creator or managing accounts is always a deliberate step. */}}
+  <form method="post" action="/account/instance-admin{{if .Session.User.IsAdmin}}/off{{end}}" class="topbar-admin">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    {{if .Session.User.IsAdmin}}
+    <span class="pill elevated" title="Instance admin powers switch off by themselves {{until .Session.ElevatedUntil}}">Instance Admin<span class="hide-narrow">&nbsp;· ends {{until .Session.ElevatedUntil}}</span></span>
+    <button type="submit" class="small">⇄ Switch back</button>
+    {{else}}
+    <button type="submit" class="small" title="Manage every account and team, and override team creators, for the next hour">⇄ Switch to Instance Admin</button>
+    {{end}}
+  </form>
+  {{end}}{{end}}
 </header>
 <div class="app-shell {{if not .Session}}auth-shell{{end}}">
 {{if .Session}}

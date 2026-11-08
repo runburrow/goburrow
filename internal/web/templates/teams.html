@@ -15,11 +15,11 @@
       <a class="row-title" href="/teams/{{.Slug}}">{{.Name}}</a>
       <span class="help">{{.MemberCount}} {{plural .MemberCount "member" "members"}} · {{.ProjectCount}} {{plural .ProjectCount "project" "projects"}}</span>
     </span>
-    {{if .MyRole}}<span class="pill">{{.MyRole}}</span>{{else}}<span class="pill" title="You can manage this team because you're an admin">Admin view</span>{{end}}
+    {{if .MyRole}}<span class="pill">{{.MyRole.Name}}</span>{{else}}<span class="pill" title="You can see this team because you've switched to Instance Admin">Instance admin view</span>{{end}}
   </li>
   {{end}}
 </ul>
 {{else}}
-<section class="panel"><p>You're not on any team yet. Create one, or ask a team owner for an invite link.</p></section>
+<section class="panel"><p>You're not on any team yet. Create one, or ask a team admin for an invite link.</p></section>
 {{end}}
 {{end}}

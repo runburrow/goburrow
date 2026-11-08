@@ -3,7 +3,7 @@
 <section class="auth-card">
   <span class="auth-fox" aria-hidden="true">{{template "fox-peek" .}}</span>
   <h1>Join {{$inv.TeamName}}</h1>
-  <p class="muted">You've been invited as {{if eq $inv.Role "owner"}}an owner{{else}}a member{{end}}. The invite expires {{until $inv.ExpiresAt}}.</p>
+  <p class="muted">You've been invited as {{if eq $inv.Role "owner"}}an admin{{else}}a member{{end}}. The invite expires {{until $inv.ExpiresAt}}.</p>
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   {{if .Session}}
   <form method="post" action="/invite/{{.Data.Token}}" class="stack">
