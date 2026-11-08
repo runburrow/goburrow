@@ -10,6 +10,7 @@
 
 {{if eq .Flash "joined"}}<p class="alert ok" role="status">Welcome to {{$t.Name}}.</p>{{end}}
 {{if eq .Flash "renamed"}}<p class="alert ok" role="status">Team renamed.</p>{{end}}
+{{if eq .Flash "creator"}}<p class="alert ok" role="status">Creator role handed on. The previous creator is still an owner.</p>{{end}}
 {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
 
 {{with .Data.InviteURL}}
@@ -41,7 +42,7 @@
 
 <section class="panel" aria-labelledby="members-heading">
   <h2 id="members-heading">Members</h2>
-  <p class="muted">Members see and triage issues. Owners also manage members, invites and projects.</p>
+  <p class="muted">Members see and triage issues. Owners also manage members, invites and projects. The creator is an owner other owners can't demote or remove.</p>
   <ul class="rows">
     {{range .Data.Members}}
     <li class="row">
@@ -50,7 +51,9 @@
         <span class="help">Joined {{ago .JoinedAt}}</span>
       </span>
       <span class="row-actions">
-        {{if $manage}}
+        {{if .IsCreator}}
+        <span class="pill" title="Made the team. Other owners can't demote or remove them.">Creator</span>
+        {{else if $manage}}
         <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/role" class="inline-form">
           <input type="hidden" name="csrf" value="{{$csrf}}">
           <label class="sr-only" for="role-{{.User.ID}}">Role for {{.User.Email}}</label>
@@ -61,7 +64,8 @@
           <button type="submit" class="small no-js-only">Save</button>
         </form>
         {{else}}<span class="pill">{{.Role}}</span>{{end}}
-        {{if eq .User.ID $me}}
+        {{if .IsCreator}}
+        {{else if eq .User.ID $me}}
         <details class="row-confirm">
           <summary class="button small">Leave</summary>
           <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/remove" class="stack">
@@ -84,6 +88,18 @@
     </li>
     {{end}}
   </ul>
+  {{if and .Data.IsCreator (gt (len .Data.Members) 1)}}
+  <form method="post" action="/teams/{{$t.Slug}}/creator" class="invite-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label for="team-creator"><span>Hand the creator role to</span>
+      <select id="team-creator" name="user" required>
+        {{range .Data.Members}}{{if not .IsCreator}}<option value="{{.User.ID}}">{{.User.Email}}</option>{{end}}{{end}}
+      </select>
+    </label>
+    <button type="submit">Make creator</button>
+  </form>
+  <p class="help invite-help">They become an owner if they aren't one. {{if eq $t.CreatorID $me}}You stay an owner, and can then leave the team.{{else}}The current creator stays an owner.{{end}}</p>
+  {{end}}
 </section>
 
 {{if $manage}}
@@ -131,6 +147,7 @@
   </form>
 </section>
 
+{{if .Data.IsCreator}}
 <section class="panel danger-zone" aria-labelledby="team-danger-heading">
   <h2 id="team-danger-heading">Delete team</h2>
   {{$n := len .Data.Projects}}
@@ -143,5 +160,6 @@
     <button class="destructive" type="submit">Delete team</button>
   </form>
 </section>
+{{end}}
 {{end}}
 {{end}}

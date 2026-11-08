@@ -105,6 +105,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /teams/{team}/delete", s.authed(s.teamDelete))
 	mux.HandleFunc("POST /teams/{team}/members/{user}/role", s.authed(s.memberRole))
 	mux.HandleFunc("POST /teams/{team}/members/{user}/remove", s.authed(s.memberRemove))
+	mux.HandleFunc("POST /teams/{team}/creator", s.authed(s.teamTransferCreator))
 	mux.HandleFunc("POST /teams/{team}/invites", s.authed(s.inviteCreate))
 	mux.HandleFunc("POST /teams/{team}/invites/{invite}/revoke", s.authed(s.inviteRevoke))
 

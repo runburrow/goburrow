@@ -126,7 +126,7 @@ func (s *Store) Setup(ctx context.Context, email, password, teamName string) (*U
 	now := ms(time.Now())
 	var teamID int64
 	if _, err := insertWithSlug(teamName, "team", func(slug string) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO teams (name, slug, created_at) VALUES (?, ?, ?)`, strings.TrimSpace(teamName), slug, now)
+		res, err := tx.ExecContext(ctx, `INSERT INTO teams (name, slug, created_at, creator_id) VALUES (?, ?, ?, ?)`, strings.TrimSpace(teamName), slug, now, u.ID)
 		if err == nil {
 			teamID, _ = res.LastInsertId()
 		}
@@ -236,7 +236,8 @@ func (s *Store) SetAdmin(ctx context.Context, userID int64, admin bool) error {
 }
 
 // DeleteUser removes the account, its sessions and memberships (cascade).
-// Teams it solely owned remain and are manageable by admins.
+// Teams it solely owned remain and are manageable by admins. Teams it
+// created pass to their longest-standing remaining owner.
 func (s *Store) DeleteUser(ctx context.Context, userID int64) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -247,6 +248,11 @@ func (s *Store) DeleteUser(ctx context.Context, userID int64) error {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE teams SET creator_id = (
+		SELECT user_id FROM team_members m WHERE m.team_id = teams.id AND m.role = 'owner'
+		ORDER BY m.created_at, m.user_id LIMIT 1) WHERE creator_id IS NULL`); err != nil {
 		return err
 	}
 	return tx.Commit()

@@ -67,6 +67,9 @@ func (s *Server) renderTeam(w http.ResponseWriter, r *http.Request, code int, in
 		"Members":   members,
 		"Projects":  projects,
 		"CanManage": a >= accessOwner,
+		// The creator, and admins, can hand the creator role to someone
+		// else and delete the team; other owners can't.
+		"IsCreator": sess.User.IsAdmin || t.CreatorID == sess.User.ID,
 		"InviteURL": inviteURL,
 		"Error":     errMsg,
 		"Me":        sess.User.ID,
@@ -104,6 +107,10 @@ func (s *Server) teamDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess := sessionFrom(r.Context()); !sess.User.IsAdmin && t.CreatorID != sess.User.ID {
+		s.render(w, r, http.StatusForbidden, "error", "Not allowed", "Only the team's creator, or an admin, can delete the team.")
+		return
+	}
 	if r.PostFormValue("confirm") != t.Slug {
 		s.renderTeam(w, r, http.StatusBadRequest, "", "Type the team's slug exactly to confirm deleting it.")
 		return
@@ -125,7 +132,7 @@ func (s *Server) memberRole(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, store.ErrNotFound) {
 		s.notFound(w, r)
 		return
-	} else if errors.Is(err, store.ErrLastOwner) {
+	} else if errors.Is(err, store.ErrLastOwner) || errors.Is(err, store.ErrCreator) {
 		s.renderTeam(w, r, http.StatusConflict, "", err.Error())
 		return
 	} else if err != nil {
@@ -133,6 +140,34 @@ func (s *Server) memberRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/teams/"+t.Slug, http.StatusSeeOther)
+}
+
+// teamTransferCreator hands the creator role to another member. Only the
+// creator and instance admins may; other owners can't touch the creator.
+func (s *Server) teamTransferCreator(w http.ResponseWriter, r *http.Request) {
+	t, _, ok := s.loadTeam(w, r, accessMember)
+	if !ok {
+		return
+	}
+	sess := sessionFrom(r.Context())
+	if !sess.User.IsAdmin && t.CreatorID != sess.User.ID {
+		s.render(w, r, http.StatusForbidden, "error", "Not allowed", "Only the team's creator, or an admin, can hand the creator role to someone else.")
+		return
+	}
+	uid, _ := strconv.ParseInt(r.PostFormValue("user"), 10, 64)
+	if uid == t.CreatorID {
+		http.Redirect(w, r, "/teams/"+t.Slug, http.StatusSeeOther)
+		return
+	}
+	err := s.Store.TransferCreator(r.Context(), t.ID, uid)
+	if errors.Is(err, store.ErrNotMember) {
+		s.renderTeam(w, r, http.StatusBadRequest, "", err.Error())
+		return
+	} else if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/teams/"+t.Slug+"?flash=creator", http.StatusSeeOther)
 }
 
 // memberRemove: owners can remove anyone; anyone can remove themselves
@@ -149,7 +184,7 @@ func (s *Server) memberRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := s.Store.RemoveMember(r.Context(), t.ID, uid)
-	if errors.Is(err, store.ErrLastOwner) {
+	if errors.Is(err, store.ErrLastOwner) || errors.Is(err, store.ErrCreator) {
 		s.renderTeam(w, r, http.StatusConflict, "", err.Error())
 		return
 	} else if err != nil {

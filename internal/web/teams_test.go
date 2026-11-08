@@ -144,16 +144,51 @@ func TestTeamsAndAccessControl(t *testing.T) {
 		t.Errorf("outsider created a project in someone else's team: %d", code)
 	}
 
-	// The last owner can't be demoted.
+	// Team "Other" has two owners: root created it, carol was invited as
+	// owner. Carol can't touch the creator: not demote, remove or replace.
+	if _, body := outsider.get("/teams/other"); !strings.Contains(body, ">Creator</span>") || strings.Contains(body, `action="/teams/other/members/1/`) || strings.Contains(body, "Make creator") || strings.Contains(body, "Delete team") {
+		t.Errorf("owners should see the creator labelled, with no controls for them")
+	}
+	for path, form := range map[string]url.Values{
+		"/teams/other/members/1/role":   {"role": {"member"}},
+		"/teams/other/members/1/remove": {},
+	} {
+		if code, _ := outsider.post(path, form); code != 409 {
+			t.Errorf("owner POST %s on the creator = %d, want 409", path, code)
+		}
+	}
+	if code, _ := outsider.post("/teams/other/delete", url.Values{"confirm": {"other"}}); code != 403 {
+		t.Errorf("owner deleting the creator's team = %d, want 403", code)
+	}
+	if code, _ := outsider.post("/teams/other/creator", url.Values{"user": {fmt.Sprint(carol)}}); code != 403 {
+		t.Errorf("owner taking the creator role = %d, want 403", code)
+	}
+	if tm, _ := admin.st.TeamBySlug(context.Background(), "other"); tm.CreatorID != 1 {
+		t.Fatalf("creator changed to %d", tm.CreatorID)
+	}
+	// The creator hands it to carol. Now carol may demote root, but then
+	// can't demote herself: the last owner can't be demoted.
 	admin.get("/teams/other")
-	// Team "Other" has two owners (root created it, carol was invited as
-	// owner). Carol may demote root, but then can't demote herself.
+	if code, _ := admin.post("/teams/other/creator", url.Values{"user": {fmt.Sprint(carol)}}); code != 200 {
+		t.Fatalf("creator transfer = %d", code)
+	}
 	outsider.get("/teams/other")
 	if code, _ := outsider.post("/teams/other/members/1/role", url.Values{"role": {"member"}}); code != 200 {
 		t.Errorf("demoting a co-owner = %d, want 200", code)
 	}
 	if code, _ := outsider.post(fmt.Sprintf("/teams/other/members/%d/role", carol), url.Values{"role": {"member"}}); code != 409 {
 		t.Errorf("demoting the last owner = %d, want 409", code)
+	}
+	// Admins can always reassign it, even when they're not the creator.
+	admin.get("/teams/other")
+	if code, _ := admin.post("/teams/other/creator", url.Values{"user": {"1"}}); code != 200 {
+		t.Errorf("admin taking the creator role back = %d", code)
+	}
+	if tm, _ := admin.st.TeamBySlug(context.Background(), "other"); tm.CreatorID != 1 {
+		t.Errorf("admin transfer didn't stick: creator %d", tm.CreatorID)
+	}
+	if r, _ := admin.st.TeamRole(context.Background(), otherTeamID(admin), 1); r != store.RoleOwner {
+		t.Errorf("new creator should be an owner, is %q", r)
 	}
 
 	// Members can leave.
@@ -275,4 +310,9 @@ func TestTeamAccessOnNewerRoutes(t *testing.T) {
 	if is, _ := admin.st.IssueByID(ctx, issues[0].ID); is.Status != store.StatusResolved {
 		t.Errorf("outsider changed an issue: %s", is.Status)
 	}
+}
+
+func otherTeamID(h *harness) int64 {
+	t, _ := h.st.TeamBySlug(context.Background(), "other")
+	return t.ID
 }

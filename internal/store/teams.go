@@ -13,14 +13,20 @@ type Role string
 const (
 	RoleOwner  Role = "owner"
 	RoleMember Role = "member"
+	// RoleCreator is never stored as a membership role: the creator is an
+	// owner whose ID is the team's creator_id. It only labels them.
+	RoleCreator Role = "creator"
 )
 
+// Valid reports whether r can be given to a member or an invite.
 func (r Role) Valid() bool { return r == RoleOwner || r == RoleMember }
 
 var (
 	ErrLastOwner   = errors.New("a team needs at least one owner. Promote someone else first")
 	ErrInviteUsed  = errors.New("this invite link is invalid, expired, or already used")
 	ErrInviteEmail = errors.New("this invite was issued for a different email address")
+	ErrCreator     = errors.New("the team's creator can't be demoted or removed. They can hand the creator role to another member first")
+	ErrNotMember   = errors.New("that person isn't a member of this team")
 )
 
 type Team struct {
@@ -28,17 +34,27 @@ type Team struct {
 	Name      string
 	Slug      string
 	CreatedAt time.Time
+	CreatorID int64 // 0 when the creator's account was deleted and no owner was left
 
 	// Populated by ListTeams only.
-	MyRole       Role // "" when the viewer is an admin but not a member
+	MyRole       Role // creator, owner, member, or "" for an admin who isn't a member
 	MemberCount  int
 	ProjectCount int
 }
 
 type Member struct {
-	User     User
-	Role     Role
-	JoinedAt time.Time
+	User      User
+	Role      Role // owner or member; the creator is an owner
+	IsCreator bool
+	JoinedAt  time.Time
+}
+
+// Label is the role to show: Creator, Owner or Member.
+func (m Member) Label() Role {
+	if m.IsCreator {
+		return RoleCreator
+	}
+	return m.Role
 }
 
 type Invite struct {
@@ -54,7 +70,7 @@ type Invite struct {
 	TeamSlug string
 }
 
-// CreateTeam creates a team with owner as its first owner.
+// CreateTeam creates a team with owner as its first owner and its creator.
 func (s *Store) CreateTeam(ctx context.Context, name string, ownerID int64) (*Team, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > 100 {
@@ -67,7 +83,7 @@ func (s *Store) CreateTeam(ctx context.Context, name string, ownerID int64) (*Te
 	defer tx.Rollback()
 	t := &Team{Name: name, CreatedAt: time.Now().UTC()}
 	t.Slug, err = insertWithSlug(name, "team", func(slug string) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO teams (name, slug, created_at) VALUES (?, ?, ?)`, name, slug, ms(t.CreatedAt))
+		res, err := tx.ExecContext(ctx, `INSERT INTO teams (name, slug, created_at, creator_id) VALUES (?, ?, ?, ?)`, name, slug, ms(t.CreatedAt), ownerID)
 		if err == nil {
 			t.ID, _ = res.LastInsertId()
 		}
@@ -76,6 +92,7 @@ func (s *Store) CreateTeam(ctx context.Context, name string, ownerID int64) (*Te
 	if err != nil {
 		return nil, err
 	}
+	t.CreatorID = ownerID
 	if _, err := tx.ExecContext(ctx, `INSERT INTO team_members (team_id, user_id, role, created_at) VALUES (?, ?, 'owner', ?)`,
 		t.ID, ownerID, ms(t.CreatedAt)); err != nil {
 		return nil, err
@@ -84,17 +101,17 @@ func (s *Store) CreateTeam(ctx context.Context, name string, ownerID int64) (*Te
 }
 
 func (s *Store) TeamBySlug(ctx context.Context, slug string) (*Team, error) {
-	return s.scanTeam(s.db.QueryRowContext(ctx, `SELECT id, name, slug, created_at FROM teams WHERE slug = ?`, slug))
+	return s.scanTeam(s.db.QueryRowContext(ctx, `SELECT id, name, slug, created_at, COALESCE(creator_id, 0) FROM teams WHERE slug = ?`, slug))
 }
 
 func (s *Store) TeamByID(ctx context.Context, id int64) (*Team, error) {
-	return s.scanTeam(s.db.QueryRowContext(ctx, `SELECT id, name, slug, created_at FROM teams WHERE id = ?`, id))
+	return s.scanTeam(s.db.QueryRowContext(ctx, `SELECT id, name, slug, created_at, COALESCE(creator_id, 0) FROM teams WHERE id = ?`, id))
 }
 
 func (s *Store) scanTeam(row *sql.Row) (*Team, error) {
 	var t Team
 	var created int64
-	if err := row.Scan(&t.ID, &t.Name, &t.Slug, &created); err != nil {
+	if err := row.Scan(&t.ID, &t.Name, &t.Slug, &created, &t.CreatorID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -111,7 +128,8 @@ func (s *Store) ListTeams(ctx context.Context, userID int64, admin bool) ([]*Tea
 		filter = ``
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT t.id, t.name, t.slug, t.created_at, COALESCE(m.role, ''),
+		SELECT t.id, t.name, t.slug, t.created_at, COALESCE(t.creator_id, 0),
+		       CASE WHEN m.role IS NOT NULL AND t.creator_id = m.user_id THEN 'creator' ELSE COALESCE(m.role, '') END,
 		       (SELECT COUNT(*) FROM team_members x WHERE x.team_id = t.id),
 		       (SELECT COUNT(*) FROM projects p WHERE p.team_id = t.id)
 		FROM teams t LEFT JOIN team_members m ON m.team_id = t.id AND m.user_id = ?
@@ -125,7 +143,7 @@ func (s *Store) ListTeams(ctx context.Context, userID int64, admin bool) ([]*Tea
 		var t Team
 		var created int64
 		var role string
-		if err := rows.Scan(&t.ID, &t.Name, &t.Slug, &created, &role, &t.MemberCount, &t.ProjectCount); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Slug, &created, &t.CreatorID, &role, &t.MemberCount, &t.ProjectCount); err != nil {
 			return nil, err
 		}
 		t.CreatedAt, t.MyRole = fromMS(created), Role(role)
@@ -146,9 +164,9 @@ func (s *Store) TeamRole(ctx context.Context, teamID, userID int64) (Role, error
 
 func (s *Store) TeamMembers(ctx context.Context, teamID int64) ([]Member, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT u.id, u.email, u.is_admin, u.created_at, m.role, m.created_at
-		FROM team_members m JOIN users u ON u.id = m.user_id
-		WHERE m.team_id = ? ORDER BY m.role = 'owner' DESC, u.email COLLATE NOCASE`, teamID)
+		SELECT u.id, u.email, u.is_admin, u.created_at, m.role, m.created_at, u.id = COALESCE(t.creator_id, 0)
+		FROM team_members m JOIN users u ON u.id = m.user_id JOIN teams t ON t.id = m.team_id
+		WHERE m.team_id = ? ORDER BY u.id = COALESCE(t.creator_id, 0) DESC, m.role = 'owner' DESC, u.email COLLATE NOCASE`, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,13 +176,47 @@ func (s *Store) TeamMembers(ctx context.Context, teamID int64) ([]Member, error)
 		var m Member
 		var uc, mc int64
 		var role string
-		if err := rows.Scan(&m.User.ID, &m.User.Email, &m.User.IsAdmin, &uc, &role, &mc); err != nil {
+		if err := rows.Scan(&m.User.ID, &m.User.Email, &m.User.IsAdmin, &uc, &role, &mc, &m.IsCreator); err != nil {
 			return nil, err
 		}
 		m.User.CreatedAt, m.Role, m.JoinedAt = fromMS(uc), Role(role), fromMS(mc)
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+// creatorGuard fails with ErrCreator if userID is the team's creator, who
+// keeps the owner role and their place until they hand the role on.
+func creatorGuard(ctx context.Context, tx *sql.Tx, teamID, userID int64) error {
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM teams WHERE id = ? AND creator_id = ?`, teamID, userID).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return ErrCreator
+	}
+	return nil
+}
+
+// TransferCreator makes userID, who must be a member, the team's creator.
+// They become an owner; the previous creator stays an owner.
+func (s *Store) TransferCreator(ctx context.Context, teamID, userID int64) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `UPDATE team_members SET role = 'owner' WHERE team_id = ? AND user_id = ?`, teamID, userID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotMember
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE teams SET creator_id = ? WHERE id = ?`, userID, teamID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // ownerGuard fails with ErrLastOwner if removing/demoting userID would leave
@@ -197,6 +249,9 @@ func (s *Store) SetMemberRole(ctx context.Context, teamID, userID int64, role Ro
 		if err := ownerGuard(ctx, tx, teamID, userID); err != nil {
 			return err
 		}
+		if err := creatorGuard(ctx, tx, teamID, userID); err != nil {
+			return err
+		}
 	}
 	res, err := tx.ExecContext(ctx, `UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ?`, string(role), teamID, userID)
 	if err != nil {
@@ -215,6 +270,9 @@ func (s *Store) RemoveMember(ctx context.Context, teamID, userID int64) error {
 	}
 	defer tx.Rollback()
 	if err := ownerGuard(ctx, tx, teamID, userID); err != nil {
+		return err
+	}
+	if err := creatorGuard(ctx, tx, teamID, userID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM team_members WHERE team_id = ? AND user_id = ?`, teamID, userID); err != nil {
