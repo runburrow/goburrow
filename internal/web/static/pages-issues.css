@@ -191,12 +191,13 @@ ol.context code { font: inherit; }
 .recent { list-style: none; margin: 0; padding: 0; font-size: var(--fs-1); }
 .recent li { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .recent li:last-child { border-bottom: 0; }
-.recent li a { flex: 0 0 auto; font-family: var(--mono); }
+/* Long environment · release labels wrap; the time never breaks mid-word. */
+.recent li a { flex: 1 1 auto; min-width: 0; font-family: var(--mono); overflow-wrap: anywhere; }
 @media (pointer: coarse) {
   .recent li a { display: inline-flex; align-items: center; min-height: 44px; }
   .raw-event summary { min-height: 44px; }
 }
-.recent li .muted { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.recent li .muted { flex: none; white-space: nowrap; }
 .danger-details { border-bottom: 0; }
 .danger-details summary { display: inline-flex; align-items: center; min-height: 40px; color: var(--red-text); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
 .danger-details[open] summary { margin-bottom: 4px; }
