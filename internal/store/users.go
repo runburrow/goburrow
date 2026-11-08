@@ -13,9 +13,12 @@ import (
 )
 
 type User struct {
-	ID        int64
-	Email     string
-	IsAdmin   bool // instance admin: manages all users and teams
+	ID    int64
+	Email string
+	// IsAdmin: an instance admin, who manages every user and team. On a
+	// Session it's true only while they've switched to Instance Admin;
+	// otherwise they act as a regular user (see Session.CanElevate).
+	IsAdmin   bool
 	CreatedAt time.Time
 }
 
@@ -24,12 +27,19 @@ type Session struct {
 	CSRF      string
 	User      User
 	ExpiresAt time.Time
+	// CanElevate: the account is an instance admin, so it can switch to
+	// Instance Admin. ElevatedUntil is when that switch runs out.
+	CanElevate    bool
+	ElevatedUntil time.Time
 }
+
+// ElevateFor is how long Instance Admin lasts once switched on.
+const ElevateFor = time.Hour
 
 var (
 	ErrBadCredentials = errors.New("invalid email or password")
 	ErrSetupDone      = errors.New("setup already completed")
-	ErrLastAdmin      = errors.New("there must be at least one admin")
+	ErrLastAdmin      = errors.New("there must be at least one instance admin")
 	ErrEmailTaken     = errors.New("an account with that email already exists")
 )
 
@@ -308,12 +318,13 @@ func (s *Store) CreateSession(ctx context.Context, userID int64, ttl time.Durati
 
 func (s *Store) SessionByToken(ctx context.Context, token string) (*Session, error) {
 	var sess Session
-	var exp, created int64
+	var exp, created, elevated int64
+	now := time.Now()
 	err := s.db.QueryRowContext(ctx, `
-		SELECT s.csrf, s.expires_at, u.id, u.email, u.is_admin, u.created_at
+		SELECT s.csrf, s.expires_at, s.elevated_until, u.id, u.email, u.is_admin, u.created_at
 		FROM sessions s JOIN users u ON u.id = s.user_id
-		WHERE s.token = ? AND s.expires_at > ?`, hashToken(token), ms(time.Now())).
-		Scan(&sess.CSRF, &exp, &sess.User.ID, &sess.User.Email, &sess.User.IsAdmin, &created)
+		WHERE s.token = ? AND s.expires_at > ?`, hashToken(token), ms(now)).
+		Scan(&sess.CSRF, &exp, &elevated, &sess.User.ID, &sess.User.Email, &sess.CanElevate, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -321,7 +332,23 @@ func (s *Store) SessionByToken(ctx context.Context, token string) (*Session, err
 	}
 	sess.Token = token
 	sess.ExpiresAt, sess.User.CreatedAt = fromMS(exp), fromMS(created)
+	if sess.CanElevate && elevated > ms(now) {
+		sess.User.IsAdmin, sess.ElevatedUntil = true, fromMS(elevated)
+	}
 	return &sess, nil
+}
+
+// SetElevated switches a session to Instance Admin until the given time,
+// or back to a regular user with the zero time. Only instance admins'
+// sessions can be switched on.
+func (s *Store) SetElevated(ctx context.Context, token string, until time.Time) error {
+	v := int64(0)
+	if !until.IsZero() {
+		v = ms(until)
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE sessions SET elevated_until = ?
+		WHERE token = ? AND (? = 0 OR user_id IN (SELECT id FROM users WHERE is_admin))`, v, hashToken(token), v)
+	return err
 }
 
 func (s *Store) DeleteSession(ctx context.Context, token string) error {

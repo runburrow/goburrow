@@ -68,3 +68,31 @@ func TestSessionTokensStoredHashed(t *testing.T) {
 		t.Fatal("logout should delete the session")
 	}
 }
+
+func TestInstanceAdminSwitch(t *testing.T) {
+	s := open(t)
+	root, err := s.Setup(ctx, "root@x.co", "long-enough-pw", "T")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob := mustUser(t, s, "bob@x.co", false)
+	rs, _ := s.CreateSession(ctx, root.ID, time.Hour)
+	bs, _ := s.CreateSession(ctx, bob.ID, time.Hour)
+
+	got, _ := s.SessionByToken(ctx, rs.Token)
+	if !got.CanElevate || got.User.IsAdmin {
+		t.Fatalf("admins start as regular users: %+v", got)
+	}
+	s.SetElevated(ctx, rs.Token, time.Now().Add(time.Hour))
+	if got, _ = s.SessionByToken(ctx, rs.Token); !got.User.IsAdmin || got.ElevatedUntil.IsZero() {
+		t.Errorf("switched on: %+v", got)
+	}
+	s.SetElevated(ctx, rs.Token, time.Now().Add(-time.Second))
+	if got, _ = s.SessionByToken(ctx, rs.Token); got.User.IsAdmin {
+		t.Error("Instance Admin should run out")
+	}
+	s.SetElevated(ctx, bs.Token, time.Now().Add(time.Hour))
+	if got, _ = s.SessionByToken(ctx, bs.Token); got.CanElevate || got.User.IsAdmin {
+		t.Error("a non-admin's session was switched on")
+	}
+}

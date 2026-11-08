@@ -88,7 +88,7 @@ func CheckMessage(c Check) Message {
 
 func article(role string) string {
 	if role == "owner" {
-		return "an owner"
+		return "an admin"
 	}
 	return "a member"
 }

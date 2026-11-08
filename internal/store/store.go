@@ -188,6 +188,10 @@ var migrations = []string{
 		SELECT user_id FROM team_members m
 		WHERE m.team_id = teams.id AND m.role = 'owner'
 		ORDER BY m.created_at, m.user_id LIMIT 1);`,
+
+	// 9: instance admins act as regular users until they switch to
+	// Instance Admin for a while, per session.
+	`ALTER TABLE sessions ADD COLUMN elevated_until INTEGER NOT NULL DEFAULT 0;`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {

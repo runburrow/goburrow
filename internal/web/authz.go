@@ -8,11 +8,14 @@ import (
 	"github.com/runburrow/goburrow/internal/store"
 )
 
-// Permission levels within a team. Instance admins act as owners everywhere.
+// Permission levels within a team. Instance admins who have switched to
+// Instance Admin act as team admins everywhere.
 //
 //	member: view projects & issues, triage (resolve/ignore), view DSN, send test events
-//	owner:  everything a member can, plus manage the team, its members,
-//	        invites, and its projects (create, delete, rotate keys, delete issues)
+//	owner:  shown as "Admin". Everything a member can, plus manage the team,
+//	        its members, invites, and its projects (create, delete, rotate
+//	        keys, delete issues). The team's creator is an owner other
+//	        owners can't demote or remove; only they delete the team.
 type access int
 
 const (
@@ -52,7 +55,7 @@ func (s *Server) require(w http.ResponseWriter, r *http.Request, have, need acce
 	if have == accessNone {
 		s.notFound(w, r)
 	} else {
-		s.render(w, r, http.StatusForbidden, "error", "Not allowed", "Only team owners can do that. Ask one of them, or an admin.")
+		s.render(w, r, http.StatusForbidden, "error", "Not allowed", "Only team admins can do that. Ask one of them.")
 	}
 	return false
 }
@@ -127,13 +130,18 @@ func (s *Server) loadTeam(w http.ResponseWriter, r *http.Request, need access) (
 	return t, a, true
 }
 
-// adminOnly wraps a handler (already behind authed) for instance admins.
+// adminOnly wraps a handler (already behind authed) for instance admins
+// who have switched to Instance Admin.
 func (s *Server) adminOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if sess := sessionFrom(r.Context()); sess == nil || !sess.User.IsAdmin {
+		sess := sessionFrom(r.Context())
+		switch {
+		case sess == nil || (!sess.User.IsAdmin && !sess.CanElevate):
 			s.notFound(w, r)
-			return
+		case !sess.User.IsAdmin:
+			s.render(w, r, http.StatusForbidden, "error", "Switch to Instance Admin", "This needs instance admin powers. Use Switch to Instance Admin at the top of the page, then try again.")
+		default:
+			next(w, r)
 		}
-		next(w, r)
 	}
 }

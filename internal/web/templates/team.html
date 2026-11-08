@@ -10,7 +10,7 @@
 
 {{if eq .Flash "joined"}}<p class="alert ok" role="status">Welcome to {{$t.Name}}.</p>{{end}}
 {{if eq .Flash "renamed"}}<p class="alert ok" role="status">Team renamed.</p>{{end}}
-{{if eq .Flash "creator"}}<p class="alert ok" role="status">Creator role handed on. The previous creator is still an owner.</p>{{end}}
+{{if eq .Flash "creator"}}<p class="alert ok" role="status">Creator role handed on. The previous creator is still an admin of the team.</p>{{end}}
 {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
 
 {{with .Data.InviteURL}}
@@ -42,7 +42,7 @@
 
 <section class="panel" aria-labelledby="members-heading">
   <h2 id="members-heading">Members</h2>
-  <p class="muted">Members see and triage issues. Owners also manage members, invites and projects. The creator is an owner other owners can't demote or remove.</p>
+  <p class="muted">Members see and triage issues. Admins also manage members, invites and projects. The creator made the team: admins can't demote or remove them, and only they can delete it.</p>
   <ul class="rows">
     {{range .Data.Members}}
     <li class="row">
@@ -52,18 +52,18 @@
       </span>
       <span class="row-actions">
         {{if .IsCreator}}
-        <span class="pill" title="Made the team. Other owners can't demote or remove them.">Creator</span>
+        <span class="pill" title="Made the team. Admins can't demote or remove them.">Creator</span>
         {{else if $manage}}
         <form method="post" action="/teams/{{$t.Slug}}/members/{{.User.ID}}/role" class="inline-form">
           <input type="hidden" name="csrf" value="{{$csrf}}">
           <label class="sr-only" for="role-{{.User.ID}}">Role for {{.User.Email}}</label>
           <select id="role-{{.User.ID}}" name="role" data-autosubmit>
             <option value="member" {{if eq .Role "member"}}selected{{end}}>Member</option>
-            <option value="owner" {{if eq .Role "owner"}}selected{{end}}>Owner</option>
+            <option value="owner" {{if eq .Role "owner"}}selected{{end}}>Admin</option>
           </select>
           <button type="submit" class="small no-js-only">Save</button>
         </form>
-        {{else}}<span class="pill">{{.Role}}</span>{{end}}
+        {{else}}<span class="pill">{{.Role.Name}}</span>{{end}}
         {{if .IsCreator}}
         {{else if eq .User.ID $me}}
         <details class="row-confirm">
@@ -98,7 +98,7 @@
     </label>
     <button type="submit">Make creator</button>
   </form>
-  <p class="help invite-help">They become an owner if they aren't one. {{if eq $t.CreatorID $me}}You stay an owner, and can then leave the team.{{else}}The current creator stays an owner.{{end}}</p>
+  <p class="help invite-help">They become a team admin if they aren't one. {{if eq $t.CreatorID $me}}You stay an admin, and can then leave the team.{{else}}The current creator stays an admin.{{end}}</p>
   {{end}}
 </section>
 
@@ -112,7 +112,7 @@
       <input id="invite-email" type="email" name="email" placeholder="otter@example.com" autocomplete="off" aria-describedby="invite-email-help">
     </label>
     <label for="invite-role"><span>Role</span>
-      <select id="invite-role" name="role"><option value="member">Member</option><option value="owner">Owner</option></select>
+      <select id="invite-role" name="role"><option value="member">Member</option><option value="owner">Admin</option></select>
     </label>
     <button type="submit">Create invite link</button>
   </form>
@@ -125,7 +125,7 @@
     <li class="row">
       <span class="row-main">
         <span class="row-title">{{if .Email}}{{.Email}}{{else}}Anyone with the link{{end}}</span>
-        <span class="help">{{if eq .Role "owner"}}Owner{{else}}Member{{end}} · created by {{if .CreatedBy}}{{.CreatedBy}}{{else}}a deleted user{{end}} · expires <time datetime="{{isodate .ExpiresAt}}" title="{{datetime .ExpiresAt}}">{{until .ExpiresAt}}</time></span>
+        <span class="help">{{.Role.Name}} · created by {{if .CreatedBy}}{{.CreatedBy}}{{else}}a deleted user{{end}} · expires <time datetime="{{isodate .ExpiresAt}}" title="{{datetime .ExpiresAt}}">{{until .ExpiresAt}}</time></span>
       </span>
       <form method="post" action="/teams/{{$t.Slug}}/invites/{{.ID}}/revoke" class="row-actions">
         <input type="hidden" name="csrf" value="{{$csrf}}"><button type="submit" class="small">Revoke</button>

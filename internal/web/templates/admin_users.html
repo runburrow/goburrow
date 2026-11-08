@@ -3,7 +3,7 @@
 <header class="pagehead">
   <div class="pagehead-copy">
     <h1>Users</h1>
-    <p class="muted">Everyone with an account on this Burrow. People join through team invite links; admins can see and manage every team and project.</p>
+    <p class="muted">Everyone with an account on this Burrow. People join through team invite links. Instance admins can switch to Instance Admin to see and manage every team and project.</p>
   </div>
 </header>
 
@@ -15,14 +15,14 @@
   {{range .Data.Users}}
   <li class="row" id="user-{{.ID}}">
     <span class="row-main">
-      <span class="row-title">{{.Email}}{{if eq .ID $me}} <span class="muted">(you)</span>{{end}}{{if .IsAdmin}} <span class="pill">Admin</span>{{end}}</span>
+      <span class="row-title">{{.Email}}{{if eq .ID $me}} <span class="muted">(you)</span>{{end}}{{if .IsAdmin}} <span class="pill">Instance admin</span>{{end}}</span>
       <span class="help">{{range $i, $t := .Teams}}{{if $i}}, {{end}}{{$t}}{{else}}No team{{end}} · joined {{ago .CreatedAt}}</span>
     </span>
     <span class="row-actions">
       <form method="post" action="/admin/users/{{.ID}}/admin">
         <input type="hidden" name="csrf" value="{{$csrf}}">
-        {{if .IsAdmin}}<input type="hidden" name="admin" value="0"><button type="submit" class="small">Remove admin</button>
-        {{else}}<input type="hidden" name="admin" value="1"><button type="submit" class="small">Make admin</button>{{end}}
+        {{if .IsAdmin}}<input type="hidden" name="admin" value="0"><button type="submit" class="small">Remove instance admin</button>
+        {{else}}<input type="hidden" name="admin" value="1"><button type="submit" class="small">Make instance admin</button>{{end}}
       </form>
       {{if ne .ID $me}}
       <details class="row-confirm">

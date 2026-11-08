@@ -115,6 +115,8 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("GET /account", s.authed(s.accountPage))
 	mux.HandleFunc("POST /account/password", s.authed(s.accountPassword))
 	mux.HandleFunc("POST /account/test-email", s.authed(s.adminOnly(s.accountTestEmail)))
+	mux.HandleFunc("POST /account/instance-admin", s.authed(s.instanceAdmin(true)))
+	mux.HandleFunc("POST /account/instance-admin/off", s.authed(s.instanceAdmin(false)))
 
 	mux.HandleFunc("GET /admin/users", s.authed(s.adminOnly(s.adminUsers)))
 	mux.HandleFunc("POST /admin/users/{user}/admin", s.authed(s.adminOnly(s.adminSetAdmin)))

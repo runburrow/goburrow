@@ -21,8 +21,22 @@ const (
 // Valid reports whether r can be given to a member or an invite.
 func (r Role) Valid() bool { return r == RoleOwner || r == RoleMember }
 
+// Name is what people see. The middle role is stored as "owner" but called
+// Admin: Creator, then Admin, then Member.
+func (r Role) Name() string {
+	switch r {
+	case RoleCreator:
+		return "Creator"
+	case RoleOwner:
+		return "Admin"
+	case RoleMember:
+		return "Member"
+	}
+	return ""
+}
+
 var (
-	ErrLastOwner   = errors.New("a team needs at least one owner. Promote someone else first")
+	ErrLastOwner   = errors.New("a team needs at least one admin. Make someone else an admin first")
 	ErrInviteUsed  = errors.New("this invite link is invalid, expired, or already used")
 	ErrInviteEmail = errors.New("this invite was issued for a different email address")
 	ErrCreator     = errors.New("the team's creator can't be demoted or removed. They can hand the creator role to another member first")

@@ -246,7 +246,7 @@ func (s *Server) projectList(w http.ResponseWriter, r *http.Request) {
 }
 
 // creatableTeams lists the teams the current user may create projects in:
-// the ones they own, or all of them for instance admins.
+// the ones they're an admin or creator of, or all of them in Instance Admin.
 func (s *Server) creatableTeams(r *http.Request) ([]*store.Team, error) {
 	sess := sessionFrom(r.Context())
 	all, err := s.Store.ListTeams(r.Context(), sess.User.ID, sess.User.IsAdmin)
@@ -255,7 +255,7 @@ func (s *Server) creatableTeams(r *http.Request) ([]*store.Team, error) {
 	}
 	var out []*store.Team
 	for _, t := range all {
-		if sess.User.IsAdmin || t.MyRole == store.RoleOwner {
+		if sess.User.IsAdmin || t.MyRole == store.RoleOwner || t.MyRole == store.RoleCreator {
 			out = append(out, t)
 		}
 	}

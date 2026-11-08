@@ -26,6 +26,15 @@ func (h *harness) as() *harness {
 var inviteRe = regexp.MustCompile(`<code id="invite-url">[^<]*/invite/([0-9a-f]+)</code>`)
 
 // invite creates an invite on team as h and returns the token.
+// elevate switches an instance admin to Instance Admin.
+func (h *harness) elevate() {
+	h.t.Helper()
+	h.get("/account")
+	if code, _ := h.post("/account/instance-admin", url.Values{}); code != 200 {
+		h.t.Fatalf("switch to Instance Admin = %d", code)
+	}
+}
+
 func (h *harness) invite(team, role, email string) string {
 	h.t.Helper()
 	h.get("/teams/" + team)
@@ -119,7 +128,7 @@ func TestTeamsAndAccessControl(t *testing.T) {
 	if role, _ := admin.st.TeamRole(context.Background(), 1, bob); role != store.RoleMember {
 		t.Errorf("member managed to change their role to %q", role)
 	}
-	if code, body := member.get("/projects/new"); code != 200 || !strings.Contains(body, "Only team owners") {
+	if code, body := member.get("/projects/new"); code != 200 || !strings.Contains(body, "Only team admins") {
 		t.Errorf("member should see the owner-only notice on /projects/new")
 	}
 	if _, body := member.get(issuePath); strings.Contains(body, `/delete"`) {
@@ -179,7 +188,30 @@ func TestTeamsAndAccessControl(t *testing.T) {
 	if code, _ := outsider.post(fmt.Sprintf("/teams/other/members/%d/role", carol), url.Values{"role": {"member"}}); code != 409 {
 		t.Errorf("demoting the last owner = %d, want 409", code)
 	}
-	// Admins can always reassign it, even when they're not the creator.
+	// An instance admin who hasn't switched is just a regular user here:
+	// root is now a plain member of Other.
+	admin.get("/teams/other")
+	if code, _ := admin.post("/teams/other/creator", url.Values{"user": {"1"}}); code != 403 {
+		t.Errorf("unswitched admin taking the creator role = %d, want 403", code)
+	}
+	if code, body := admin.get("/admin/users"); code != 403 || !strings.Contains(body, "Switch to Instance Admin") {
+		t.Errorf("unswitched admin on the Users page = %d", code)
+	}
+	if _, body := admin.get("/teams"); !strings.Contains(body, "⇄ Switch to Instance Admin") || strings.Contains(body, `href="/admin/users"`) {
+		t.Error("unswitched admin should get the switch, not the Users link")
+	}
+	if _, body := member.get("/teams"); strings.Contains(body, "Switch to Instance Admin") {
+		t.Error("non-admins must not see the switch")
+	}
+	if code, _ := member.post("/account/instance-admin", url.Values{}); code != 404 {
+		t.Errorf("non-admin switching = %d, want 404", code)
+	}
+
+	// Switched, admins can reassign it even when they're not the creator.
+	admin.elevate()
+	if _, body := admin.get("/teams"); !strings.Contains(body, "⇄ Switch back") || !strings.Contains(body, `href="/admin/users"`) {
+		t.Error("switched admin should see Switch back and the Users link")
+	}
 	admin.get("/teams/other")
 	if code, _ := admin.post("/teams/other/creator", url.Values{"user": {"1"}}); code != 200 {
 		t.Errorf("admin taking the creator role back = %d", code)

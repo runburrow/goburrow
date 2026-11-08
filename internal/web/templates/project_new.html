@@ -8,7 +8,7 @@
 
 <section class="panel narrow-panel">
   {{if not .Data.Teams}}
-  <p>Only team owners can create projects. Ask an owner of your team, or <a href="/teams/new">start a team of your own</a>.</p>
+  <p>Only team admins can create projects. Ask an admin of your team, or <a href="/teams/new">start a team of your own</a>.</p>
   {{else}}
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/projects/new" class="stack">
