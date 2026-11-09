@@ -69,7 +69,7 @@
 {{end}}
 
 <div class="results">
-<div class="dig-overlay" aria-hidden="true"><span class="burrow">{{template "fox-peek" .}}</span><span class="dig-caption">Digging for issues</span></div>
+<div class="dig-overlay" aria-hidden="true"><span class="burrow">{{template "fox-peek" .}}</span><span class="burrow trot">{{template "fox-trot" .}}</span><span class="dig-caption">Digging for issues</span></div>
 {{if .Data.Issues}}
 <form class="tracklist issue-list" method="post" action="/projects/{{$p.Slug}}/issues/status" aria-label="{{$status}} issues">
   <input type="hidden" name="csrf" value="{{$csrf}}">
@@ -116,7 +116,7 @@
 </div>
 {{else if eq .Data.Total 0}}
 <div class="empty onboarding" data-wait-first-event>
-  <span class="empty-fox burrow looping">{{template "fox-peek" .}}</span>
+  <span class="empty-fox burrow trot trotting">{{template "fox-trot" .}}</span>
   <h2>Waiting for the first event</h2>
   <p class="muted">Nothing has reached {{$p.Name}} yet. Initialize a Sentry SDK with this DSN, or send a test event to see what an issue looks like. <span class="js-only-inline">This page updates when the first event arrives.</span></p>
   <div class="copybox">

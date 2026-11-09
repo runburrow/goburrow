@@ -337,14 +337,15 @@ The list unit for issues and projects. A grid row with a 1px bottom `border`, 64
 - **Stack frames:** a bordered stack of disclosures, 52px summaries, in-app frames in ink and library frames in `muted`.
 
 ### The Fox (signature)
-One-ink bar-drawn art in three poses, all `aria-hidden`: **fox-mark** (52 viewBox, brand), **fox-peek** (head rising from a dashed hole ring, with grass ticks, dirt mound and particles in `muted`), **fox-sit** (full body with tail). Coat bars are `fox-rust` at 1.2px round-capped strokes; ear tips, ruff and tail tip are `cream-ink`; eyes and nose are ink with eye grounds and the hole cover in `ground`, so the art works on both schemes.
+One-ink bar-drawn art in four poses, all `aria-hidden`: **fox-mark** (52 viewBox, brand), **fox-peek** (head rising from a dashed hole ring, with grass ticks, dirt mound and particles in `muted`), **fox-sit** (full body with tail), **fox-trot** (side view standing beside the hole, on two-segment legs jointed at hip and knee). Coat bars are `fox-rust` at 1.2px round-capped strokes; ear tips, ruff and tail tip are `cream-ink`; eyes and nose are ink with eye grounds and the hole cover in `ground`, so the art works on both schemes.
 
 **Where it appears:** the brand mark; empty states (no issues, waiting for the first event, cleared, no results); setup, login and error pages; the search dig; and, on Persuade, the header and the closing section. Never inside a populated list, beside an issue row, or as decoration in data panels.
 
 **Motion** (all inside `prefers-reduced-motion: no-preference`):
 - **Blink:** eyes scale to 0.12 for two frames every 9s.
 - **Wiggle:** brand mark rotates -7deg / 4deg over 460ms on hover or focus.
-- **Burrow loop:** 2.6s crouch, head-first dive below the hole cover, scrabble with dirt bursts and a squashing mound, pop back up, ear twitch; loops with an 800ms delay while a new project waits for its first event (600ms on Persuade's closing fox).
+- **Trot loop:** 5.4s (3.8s in the slow-load overlay). The side-view fox trots in from the left on diagonal leg pairs that bend at hip and knee, with a half-stride body bob and tail sway; it hops, dives nose-first below the hole cover, dirt flies, and its ears rise from the hole and twitch. Runs while a new project waits for its first event and on slow page loads.
+- **Burrow loop:** 2.6s crouch, head-first dive below the hole cover, scrabble with dirt bursts and a squashing mound, pop back up, ear twitch; loops on Persuade's closing fox (600ms delay).
 - **Search dig:** a tight 700ms dive and scrabble that plays in place of the results (results dim to 25%, "Digging for issues" caption in `muted`), only when the typed query changed.
 - **Pop-up:** 900ms rise from the hole with one dirt burst and two ear twitches, on the search results line, empty states, and error page.
 - **Celebrate:** the sitting fox swishes its tail twice when the last issue is cleared.
