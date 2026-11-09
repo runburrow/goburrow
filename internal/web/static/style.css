@@ -223,7 +223,17 @@ table { border-collapse: collapse; width: 100%; }
 .fox .dirt-particles { fill: var(--muted); opacity: 0; }
 .fox-head, .fox-ears, .fox-eyes, .dirt-particles, .dirt-mound { transform-box: fill-box; transform-origin: center bottom; }
 .fox-eyes { transform-origin: center; }
+/* Feedback: states ease in over 120ms; nothing moves that isn't answering a pointer or key. */
+button, .button, .rail-item, .tab, input, select, textarea { transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out; }
+a { transition: text-decoration-color 120ms ease-out, color 120ms ease-out; }
+button:active:not(:disabled):not(.link), .button:active { transform: translateY(1px); }
+.frame summary::after { transition: transform 160ms cubic-bezier(.16, 1, .3, 1); }
 @media (prefers-reduced-motion: no-preference) {
+  .shortcuts[open] { animation: rise-in 180ms cubic-bezier(.16, 1, .3, 1); }
+  .shortcuts[open]::backdrop { animation: fade-in 180ms ease-out; }
+  .alert { animation: rise-in 240ms cubic-bezier(.16, 1, .3, 1); }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes fade-in { from { opacity: 0; } }
   .fox-eyes { animation: fox-blink 9s infinite; }
   .brand:hover .fox-mark, .brand:focus-visible .fox-mark { animation: fox-wiggle 460ms cubic-bezier(.16, 1, .3, 1); }
   @keyframes fox-blink { 0%, 44%, 47%, 100% { transform: scaleY(1); } 45%, 46% { transform: scaleY(.12); } }

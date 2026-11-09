@@ -344,11 +344,13 @@ One-ink bar-drawn art in four poses, all `aria-hidden`: **fox-mark** (52 viewBox
 **Motion** (all inside `prefers-reduced-motion: no-preference`):
 - **Blink:** eyes scale to 0.12 for two frames every 9s.
 - **Wiggle:** brand mark rotates -7deg / 4deg over 460ms on hover or focus.
-- **Trot loop:** 5.4s (3.8s in the slow-load overlay). The side-view fox trots in from the left on diagonal leg pairs that bend at hip and knee, with a half-stride body bob and tail sway; it hops, dives nose-first below the hole cover, dirt flies, and its ears rise from the hole and twitch. Runs while a new project waits for its first event and on slow page loads.
-- **Burrow loop:** 2.6s crouch, head-first dive below the hole cover, scrabble with dirt bursts and a squashing mound, pop back up, ear twitch; loops on Persuade's closing fox (600ms delay).
+- **Trot:** plays once. The side-view fox trots in from the left over seven 360ms strides on diagonal leg pairs that bend at hip and knee (half-stride body bob, tail sway), tucks its legs for the pounce (forelegs reach, hind legs trail), dives nose-first below the hole cover, and dirt flies. Then it stays in the hole: its ears rise, and a 7s idle twitches them, ducks them out of sight and brings them back. Runs while a new project waits for its first event; on slow page loads the fox starts in view, three strides from the hole; on Persuade's closing section it starts when the section scrolls into view.
+- **Burrow loop:** 2.6s crouch, head-first dive below the hole cover, scrabble with dirt bursts and a squashing mound, pop back up, ear twitch (kept for `.looping`; no surface uses it at present).
 - **Search dig:** a tight 700ms dive and scrabble that plays in place of the results (results dim to 25%, "Digging for issues" caption in `muted`), only when the typed query changed.
-- **Pop-up:** 900ms rise from the hole with one dirt burst and two ear twitches, on the search results line, empty states, and error page.
+- **Pop-up:** 900ms rise from the hole with one dirt burst and two ear twitches, on the search results line, empty states, the error page, the login, setup and invite cards, and the one-time "First event received" line shown when a waiting project gets its first event.
 - **Celebrate:** the sitting fox swishes its tail twice when the last issue is cleared.
+
+**Interface feedback:** buttons, rail items, tabs, fields and links ease their colour changes over 120ms; buttons sink 1px while pressed; the stack-frame chevron turns over 160ms; the shortcuts dialog and alerts rise 6px and fade in (180ms / 240ms). List rows stay instant.
 
 **Reduced motion:** every animation and transition is removed globally; JS skips the search wait entirely, and the Persuade stream starts paused. The fox renders in its resting pose; nothing is hidden.
 

@@ -75,9 +75,25 @@
       if (document.hidden) return;
       try {
         const res = await fetch(window.location.href, { cache: "no-store", credentials: "same-origin" });
-        if (res.ok && !(await res.text()).includes("data-wait-first-event")) window.location.reload();
+        if (res.ok && !(await res.text()).includes("data-wait-first-event")) {
+          try { window.sessionStorage.setItem("burrow-first-event", "1"); } catch { /* the welcome is optional */ }
+          window.location.reload();
+        }
       } catch { /* offline for a moment; try again next tick */ }
     }, 5000);
+  }
+
+  // The reload after a project's first event greets it, once.
+  const welcome = document.querySelector("[data-first-event]");
+  if (welcome) {
+    try {
+      if (window.sessionStorage.getItem("burrow-first-event")) {
+        window.sessionStorage.removeItem("burrow-first-event");
+        welcome.hidden = false;
+        const fox = welcome.querySelector(".mini-fox");
+        if (fox) fox.classList.add("pop-up");
+      }
+    } catch { /* no storage, no welcome */ }
   }
 
   // Bulk selection: the bar keeps its place (no layout jump), counts the

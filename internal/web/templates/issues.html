@@ -8,6 +8,7 @@
   </div>
 </header>
 
+{{if and .Data.Issues (not .Data.Query)}}<p class="alert ok first-event" role="status" data-first-event hidden><span class="mini-fox burrow" aria-hidden="true">{{template "fox-peek" .}}</span><span>First event received. Burrow is listening.</span></p>{{end}}
 {{if eq .Flash "created"}}<p class="alert ok" role="status">Project created. Send it an event and this page updates by itself.</p>{{end}}
 {{if eq .Flash "test-sent"}}<p class="alert ok" role="status">Test event sent. It's the newest issue in the list.</p>{{end}}
 {{with .Data.Changed}}

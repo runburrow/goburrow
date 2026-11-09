@@ -1,6 +1,6 @@
 {{define "content"}}
 <section class="auth-card">
-  <span class="auth-fox" aria-hidden="true">{{template "fox-peek" .}}</span>
+  <span class="auth-fox burrow pop-up" aria-hidden="true">{{template "fox-peek" .}}</span>
   <h1>Log in to Burrow</h1>
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
   <form method="post" action="/login" class="stack">
