@@ -46,6 +46,28 @@
 </section>
 {{end}}
 
+<section class="panel narrow-panel" id="appearance" aria-labelledby="appearance-heading">
+  <h2 id="appearance-heading">Appearance</h2>
+  <form method="post" action="/account/theme" class="theme-form">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <fieldset class="theme-options">
+      <legend class="sr-only">Theme</legend>
+      <label class="theme-option">
+        <input type="radio" name="theme" value="" data-autosubmit {{if not .Theme}}checked{{end}}>
+        <span class="theme-swatch swatch-burrow" aria-hidden="true">{{template "fox-mark" $}}<span class="bars"><span class="bar h20"></span><span class="bar h0"></span><span class="bar h45"></span><span class="bar h30"></span><span class="bar h0"></span><span class="bar h70"></span><span class="bar h100"></span></span></span>
+        <span class="theme-copy"><span class="theme-name">Burrow</span><span class="help">Warm stone and near-black, with the fox in rust.</span></span>
+      </label>
+      <label class="theme-option">
+        <input type="radio" name="theme" value="barcode" data-autosubmit {{if eq .Theme "barcode"}}checked{{end}}>
+        <span class="theme-swatch swatch-barcode" aria-hidden="true">{{template "fox-mark" $}}<span class="bars"><span class="bar h20"></span><span class="bar h0"></span><span class="bar h45"></span><span class="bar h30"></span><span class="bar h0"></span><span class="bar h70"></span><span class="bar h100"></span></span></span>
+        <span class="theme-copy"><span class="theme-name">Barcode</span><span class="help">Black and white only, set in mono. Severity shows as shape and weight, never colour.</span></span>
+      </label>
+    </fieldset>
+    <p class="help theme-note">Saved in this browser. Both follow your system's light or dark setting.</p>
+    <button type="submit" class="theme-submit">Save appearance</button>
+  </form>
+</section>
+
 <section class="panel narrow-panel" aria-labelledby="session-heading">
   <h2 id="session-heading">This device</h2>
   <form method="post" action="/logout">

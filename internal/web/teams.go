@@ -335,6 +335,17 @@ func (s *Server) accountData(r *http.Request, errMsg string) map[string]any {
 	return data
 }
 
+// accountTheme sets the look for this browser. Anything but a known theme
+// goes back to the default.
+func (s *Server) accountTheme(w http.ResponseWriter, r *http.Request) {
+	theme := r.PostFormValue("theme")
+	if !themes[theme] {
+		theme = ""
+	}
+	s.setThemeCookie(w, theme)
+	http.Redirect(w, r, "/account#appearance", http.StatusSeeOther)
+}
+
 // accountTestEmail sends the "Burrow can send email" message to the admin
 // who pressed the button, to check the SMTP setup end to end.
 func (s *Server) accountTestEmail(w http.ResponseWriter, r *http.Request) {

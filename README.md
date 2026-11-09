@@ -46,6 +46,9 @@ traces, breadcrumbs, tags and user context.
   issue's 14-day activity, and are capped at 20 an hour per address.
 - **Email (optional).** With SMTP set up, Burrow emails alerts and team invites. Admins can
   check the setup with **Send test email** on their account page.
+- **Two themes.** The default, and **Barcode**: black and white only, set in mono, with
+  severity shown by shape and weight instead of colour. Both follow the system's light or
+  dark setting. Pick one under **Appearance** on your account page.
 - **Idempotent ingestion.** SDK retries never double-count.
 - **Retention.** Old events are pruned automatically (30 days by default).
 - **Secure defaults.** bcrypt passwords, login throttling, hashed session tokens, CSRF tokens,

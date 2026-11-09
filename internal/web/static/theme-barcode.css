@@ -1,0 +1,116 @@
+/*
+ * Barcode: Burrow's second theme, after the first design round's "Barcode
+ * Field". Loaded only when <html data-theme="barcode">; the default theme
+ * never sees this file.
+ *
+ * No hue: white on black, or black on white when the system is light.
+ * Everything is set in IBM Plex Mono, corners are square, and what the
+ * default theme says with red, amber or blue is said with form instead:
+ *   inversion  selected rows, regressions, fatal, the line that threw
+ *   hatching   destructive actions and errors
+ *   weight     focus, the active page, unhandled exceptions
+ * Activity bars are masked into hairlines, so each day reads as a cluster
+ * of barcode lines whose height is still that day's count.
+ */
+:root[data-theme="barcode"] {
+  --bg: #000; --surface: #0d0d0d; --surface-2: #1f1f1f;
+  --text: #fff; --muted: #a6a6a6; --border: #3a3a3a; --rule: #8c8c8c;
+  --red: #fff; --red-text: #fff; --blue: #fff; --warn: #fff; --fox: #fff;
+  --ok-bg: #000; --err-bg: #000; --code-bg: #0d0d0d; --hit: #fff;
+  --radius: 0px;
+  --sans: var(--mono);
+  --hatch: repeating-linear-gradient(135deg, transparent 0 5px, rgb(255 255 255 / .3) 5px 6px);
+}
+/* Inverted ground: the same tokens, swapped, so anything inside follows. */
+[data-theme="barcode"] :is(.issue-row:has(:checked), .pill.regression, .level-fatal, ol.context li.hit) {
+  --bg: #fff; --surface: #ebebeb; --surface-2: #dcdcdc;
+  --text: #000; --muted: #474747; --border: #b8b8b8; --rule: #666;
+  --red: #000; --red-text: #000; --blue: #000; --warn: #000; --fox: #000;
+}
+/* Inverted twice is plain again: a regression inside a ticked row. */
+[data-theme="barcode"] .issue-row:has(:checked) :is(.pill.regression, .level-fatal) {
+  --bg: #000; --text: #fff; --muted: #a6a6a6; --rule: #8c8c8c;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="barcode"] {
+    --bg: #fff; --surface: #f5f5f5; --surface-2: #e4e4e4;
+    --text: #000; --muted: #525252; --border: #c8c8c8; --rule: #757575;
+    --red: #000; --red-text: #000; --blue: #000; --warn: #000; --fox: #000;
+    --ok-bg: #fff; --err-bg: #fff; --code-bg: #f5f5f5; --hit: #000;
+    --hatch: repeating-linear-gradient(135deg, transparent 0 5px, rgb(0 0 0 / .28) 5px 6px);
+  }
+  [data-theme="barcode"] :is(.issue-row:has(:checked), .pill.regression, .level-fatal, ol.context li.hit) {
+    --bg: #000; --surface: #161616; --surface-2: #262626;
+    --text: #fff; --muted: #b8b8b8; --border: #4a4a4a; --rule: #999;
+    --red: #fff; --red-text: #fff; --blue: #fff; --warn: #fff; --fox: #fff;
+  }
+  [data-theme="barcode"] .issue-row:has(:checked) :is(.pill.regression, .level-fatal) {
+    --bg: #fff; --text: #000; --muted: #525252; --rule: #757575;
+  }
+}
+
+/* Type: one face. Mono runs wide, so list titles drop a size. */
+[data-theme="barcode"] h1 { letter-spacing: -.03em; }
+[data-theme="barcode"] .track-title { font-size: var(--fs-2); }
+[data-theme="barcode"] :is(.tracklist-head, .crumbs-table th, .pill, .level-label) { text-transform: uppercase; letter-spacing: .06em; }
+[data-theme="barcode"] a:hover { text-decoration-thickness: 2px; }
+
+/* Shell */
+[data-theme="barcode"] .rail-item.active { background: transparent; box-shadow: inset 0 0 0 1px var(--text); }
+[data-theme="barcode"] .rail-account button.link { justify-content: flex-start; font-size: var(--fs-1); text-align: left; }
+[data-theme="barcode"] .tab-count { background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
+[data-theme="barcode"] .tab.active .tab-count { box-shadow: inset 0 0 0 1px var(--text); }
+[data-theme="barcode"] .shortcuts { border-color: var(--text); border-radius: 0; box-shadow: none; }
+[data-theme="barcode"] .shortcuts::backdrop { background: rgb(0 0 0 / .7); }
+
+/* Controls: filled inverts to outlined on hover; danger is hatched. */
+[data-theme="barcode"] .primary:hover:not(:disabled) { background: transparent; border-color: var(--text); color: var(--text); }
+[data-theme="barcode"] .destructive { background-image: var(--hatch); }
+[data-theme="barcode"] .destructive:hover:not(:disabled) { background-image: none; }
+[data-theme="barcode"] .alert.ok { border-color: var(--rule); }
+[data-theme="barcode"] .alert.error { border-color: var(--text); background-image: var(--hatch); font-weight: 500; }
+[data-theme="barcode"] .danger-details summary { text-decoration-style: dashed; }
+[data-theme="barcode"] .danger-zone { border-top: 1px dashed var(--rule); }
+
+/* Lists: a ticked row is inverted outright. */
+[data-theme="barcode"] .tracklist-head { border-bottom-color: var(--text); }
+[data-theme="barcode"] .track-row:hover { background: var(--surface-2); }
+[data-theme="barcode"] .issue-row:has(:checked) { background: var(--bg); color: var(--text); }
+[data-theme="barcode"] .issue-row:has(:checked):hover { background: var(--surface); }
+[data-theme="barcode"] .issue-row:has(:checked):has(.row-link:focus-visible) { outline-color: var(--text); outline-style: dashed; }
+@media (min-width: 1101px) {
+  [data-theme="barcode"] .issue-list .tracklist-head, [data-theme="barcode"] .issue-row { grid-template-columns: 22px 88px minmax(0, 1fr) 168px 76px 116px; }
+}
+@media (min-width: 901px) and (max-width: 1100px) {
+  [data-theme="barcode"] .issue-list .tracklist-head, [data-theme="barcode"] .issue-row { grid-template-columns: 22px 88px minmax(0, 1fr) 126px 64px 116px; }
+  [data-theme="barcode"] .project-list .tracklist-head, [data-theme="barcode"] .project-row { grid-template-columns: minmax(0, 1fr) 126px 96px 116px; }
+}
+@media (min-width: 701px) and (max-width: 900px) {
+  [data-theme="barcode"] .issue-list .tracklist-head, [data-theme="barcode"] .issue-row { grid-template-columns: 22px 88px minmax(0, 1fr) 76px 116px; }
+  [data-theme="barcode"] .project-list .tracklist-head, [data-theme="barcode"] .project-row { grid-template-columns: minmax(0, 1fr) 126px 96px 116px; }
+}
+
+/* Activity: every day a cluster of hairlines, the whole strip a barcode. */
+[data-theme="barcode"] .barcode .bars { -webkit-mask: repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 3px); mask: repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 3px); }
+[data-theme="barcode"] .barcode .bar { flex: 1 1 0; }
+@media (forced-colors: active) {
+  [data-theme="barcode"] .barcode .bars { -webkit-mask: none; mask: none; }
+}
+
+/* Level and status: the glyph shapes stay; fatal and regression invert. */
+[data-theme="barcode"] .level-fatal { padding: 1px 7px 1px 6px; background: var(--bg); color: var(--text); }
+[data-theme="barcode"] .level-warning { font-weight: 600; }
+[data-theme="barcode"] .pill { border-color: var(--rule); }
+[data-theme="barcode"] .pill.regression { border-color: var(--bg); background: var(--bg); color: var(--text); }
+[data-theme="barcode"] .unhandled { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .25em; }
+[data-theme="barcode"] :is(.crumb-fatal, .crumb-error) td:first-child { font-weight: 600; }
+
+/* Code: the line that threw is the one inverted line in the frame. */
+[data-theme="barcode"] .frame-scope { border-radius: 0; }
+[data-theme="barcode"] ol.context li.hit { background: var(--bg); color: var(--text); border-left-color: var(--bg); }
+[data-theme="barcode"] ol.context li.hit::marker { color: var(--bg); }
+
+/* Mono is too wide for a link and its age on one sidebar line. */
+[data-theme="barcode"] .recent li { flex-wrap: wrap; gap: 0 10px; }
+[data-theme="barcode"] .recent li a { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
+[data-theme="barcode"] .recent li .muted { flex: 0 0 auto; }

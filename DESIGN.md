@@ -354,6 +354,29 @@ One-ink bar-drawn art in three poses, all `aria-hidden`: **fox-mark** (52 viewBo
 ### Persuade-only: Live Issue Stream
 The landing hero: a 6px-cornered `surface` container with the hero lift shadow, a header strip (project, unresolved count, "Sample data" tag, Pause), an incoming-event strip on `code-bg` in mono, and four issue rows built from the same level glyphs, hairline bars (height transitions 400ms `cubic-bezier(.16, 1, .3, 1)`), mono counts and a working Resolve button. New events flash a 14% blue tint for 900ms; new rows slide in 8px over 500ms. Resolved titles go `muted` with a `rule`-coloured strike. It works as a static list without JS.
 
+## Themes
+
+Operate has two themes. **Burrow** (everything above) is the default. **Barcode** is the alternative, after the first design round's "Barcode Field" direction: the dashboard as a printed label. People pick one under Appearance on the account page; the choice is a `burrow_theme` cookie, so the login and error pages wear it too. The server renders `<html data-theme="barcode">` and links `theme-barcode.css` only then, so the default theme never loads or sees it. Emails, webhook cards and the landing page stay on the default brand.
+
+### Barcode
+- **No hue.** `#000` and `#fff` trade places with the system's light or dark setting. Greys are for secondary text (`muted`: `#a6a6a6` on black, `#525252` on white) and rules only. `red`, `red-text`, `blue`, `warn` and `fox` all resolve to the ink, so nothing in the base CSS can leak a colour.
+- **One face.** `--sans` resolves to IBM Plex Mono, so prose, buttons and headings are mono too. The five sizes hold; list titles drop to 14px because mono runs wide. Column heads, pills and level labels are uppercase with `.06em` tracking.
+- **Square.** `--radius` is 0, and the dialog loses its shadow for a 1px ink border.
+- **Hairline clusters.** `.barcode .bars` is masked by a 1px-on, 2px-off vertical grating and each day's bar fills its share of the strip. A day reads as a cluster of barcode lines whose height is still that day's count; zero days leave a dotted baseline.
+
+### What stands in for colour
+- **Inversion** (ink ground, ground-coloured text) marks what the default marks in red or by tone: ticked rows, the regression pill, the fatal label, and the line that threw. These elements swap the tokens themselves, so everything inside follows. A regression pill inside a ticked row swaps back, so it stays visible.
+- **Hatching** (1px diagonal lines at about 30% ink) marks danger: destructive buttons at rest (they fill solid on hover) and error alerts.
+- **Weight and line** carry the rest: the focus ring, selection and caret are ink; the active rail item is a 1px outlined box; the primary button is filled and turns outlined on hover; `unhandled` gets a 2px underline; the danger zone opens with a dashed rule.
+- **Level glyphs are unchanged.** Shape already carried level; here it carries it alone, with warning set at weight 600.
+
+### Named Rules
+**The Two Inks Rule.** In Barcode, a new state is drawn with inversion, hatching, weight or line style. If it seems to need a colour, it needs a clearer shape.
+
+**The Honest Barcode Rule.** Barcode texture only appears where it plots data (activity) or draws the fox. No decorative barcodes, number columns or day counters.
+
+**The Token Swap Rule.** A new theme overrides tokens first and components second, lives in its own `theme-<name>.css` scoped to `[data-theme="<name>"]`, and is added to the `themes` allow-list in `server.go`. It must pass in both colour schemes.
+
 ## Do's and Don'ts
 
 ### Do:

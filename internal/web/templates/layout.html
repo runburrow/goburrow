@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en"{{with .Theme}} data-theme="{{.}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,11 +19,12 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Burrow fox sitting by its burrow, next to the words: Your errors, your server.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f2f1ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="{{if eq .Theme "barcode"}}#000000{{else}}#0b0b0a{{end}}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="{{if eq .Theme "barcode"}}#ffffff{{else}}#f2f1ee{{end}}" media="(prefers-color-scheme: light)">
 <link rel="stylesheet" href="/static/style.css?v={{.Asset}}">
 <link rel="stylesheet" href="/static/pages-issues.css?v={{.Asset}}">
 <link rel="stylesheet" href="/static/pages-admin.css?v={{.Asset}}">
+{{with .Theme}}<link rel="stylesheet" href="/static/theme-{{.}}.css?v={{$.Asset}}">{{end}}
 <link rel="icon" href="/static/favicon.svg?v={{.Asset}}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="manifest" href="/static/manifest.webmanifest">

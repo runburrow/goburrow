@@ -60,6 +60,31 @@ a.row-title { color: var(--text); }
 .owner-note { margin: 24px 0 0; }
 .test-email-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; }
 
+/* Appearance: each choice previews itself, so its swatch carries that
+   theme's own tokens whatever the page is wearing. */
+.theme-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 0; }
+.theme-option { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+.theme-option:hover { border-color: var(--rule); }
+.theme-option:has(:checked) { border-color: var(--text); }
+.theme-option:has(:focus-visible) { outline: 2px solid var(--blue); outline-offset: 3px; }
+.theme-option input { position: absolute; top: 20px; right: 20px; width: 18px; height: 18px; margin: 0; accent-color: var(--text); }
+.theme-option input:focus-visible { outline: 0; }
+.theme-swatch { display: flex; align-items: flex-end; gap: 14px; height: 64px; padding: 10px 44px 10px 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.theme-swatch .fox-mark { width: 36px; height: 36px; flex: none; }
+.theme-swatch .bars { flex: 1; height: 100%; max-width: 96px; }
+.swatch-burrow { --bg: #0b0b0a; --text: #f2efe6; --fox: #e07a43; --rule: #706f68; --border: #2f2f2b; border-radius: 4px; }
+.swatch-barcode { --bg: #000; --text: #fff; --fox: #fff; --rule: #8c8c8c; --border: #3a3a3a; }
+.swatch-barcode .bars { -webkit-mask: repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 3px); mask: repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 3px); }
+.swatch-barcode .bar { flex: 1 1 0; }
+@media (prefers-color-scheme: light) {
+  .swatch-burrow { --bg: #f2f1ee; --text: #1a1916; --fox: #b4531f; --rule: #86847e; --border: #d5d2ca; }
+  .swatch-barcode { --bg: #fff; --text: #000; --fox: #000; --rule: #757575; --border: #c8c8c8; }
+}
+.theme-copy { display: flex; flex-direction: column; gap: 2px; }
+.theme-name { font-weight: 600; }
+.theme-note { margin: 12px 0; }
+.js .theme-submit { display: none; }
+
 /* Webhooks --------------------------------------------------------------- */
 .webhook-list { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--border); }
 .webhook { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 12px 0; border-bottom: 1px solid var(--border); }

@@ -114,6 +114,7 @@ func (s *Server) Handler() (http.Handler, error) {
 
 	mux.HandleFunc("GET /account", s.authed(s.accountPage))
 	mux.HandleFunc("POST /account/password", s.authed(s.accountPassword))
+	mux.HandleFunc("POST /account/theme", s.authed(s.accountTheme))
 	mux.HandleFunc("POST /account/test-email", s.authed(s.adminOnly(s.accountTestEmail)))
 	mux.HandleFunc("POST /account/instance-admin", s.authed(s.instanceAdmin(true)))
 	mux.HandleFunc("POST /account/instance-admin/off", s.authed(s.instanceAdmin(false)))
@@ -161,6 +162,7 @@ type pageData struct {
 	Asset   string
 	Origin  string // public scheme://host, for absolute URLs (link previews)
 	Flash   string
+	Theme   string // "" for the default look, or a name from themes
 	Nav     navigationData
 	Data    any
 }
@@ -171,7 +173,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 		http.Error(w, "unknown page "+page, http.StatusInternalServerError)
 		return
 	}
-	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Asset: s.assetTag, Origin: s.origin(), Data: data, Flash: r.URL.Query().Get("flash")}
+	pd := pageData{Title: title, Session: sessionFrom(r.Context()), Version: s.Version, Asset: s.assetTag, Origin: s.origin(), Data: data, Flash: r.URL.Query().Get("flash"), Theme: themeFrom(r)}
 	pd.Nav.Page = page
 	if m, ok := data.(map[string]any); ok {
 		pd.Nav.Project, _ = m["Project"].(*store.Project)
@@ -365,6 +367,37 @@ func (s *Server) setSessionCookie(w http.ResponseWriter, sess *store.Session) {
 		Secure:   s.BaseURL != nil && s.BaseURL.Scheme == "https",
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+// themeCookie remembers the look this browser picked. It's a cookie rather
+// than a column so the login and error pages wear it too.
+const themeCookie = "burrow_theme"
+
+// themes are the looks besides the default. Each has a theme-<name>.css.
+var themes = map[string]bool{"barcode": true}
+
+// themeFrom is the theme this browser asked for: "" unless it names one.
+func themeFrom(r *http.Request) string {
+	if c, err := r.Cookie(themeCookie); err == nil && themes[c.Value] {
+		return c.Value
+	}
+	return ""
+}
+
+func (s *Server) setThemeCookie(w http.ResponseWriter, theme string) {
+	c := &http.Cookie{
+		Name:     themeCookie,
+		Value:    theme,
+		Path:     "/",
+		MaxAge:   400 * 24 * 60 * 60, // the longest browsers keep a cookie
+		HttpOnly: true,
+		Secure:   s.BaseURL != nil && s.BaseURL.Scheme == "https",
+		SameSite: http.SameSiteLaxMode,
+	}
+	if theme == "" {
+		c.MaxAge = -1
+	}
+	http.SetCookie(w, c)
 }
 
 // DSN builds the client DSN for a project: scheme://key@host/project_id
