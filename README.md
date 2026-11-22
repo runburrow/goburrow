@@ -38,6 +38,9 @@ traces, breadcrumbs, tags and user context.
 - **Report API.** No SDK for your platform? POST plain JSON to `/api/<id>/report`. Stack
   traces in Luau, Lua, Python or JavaScript text become frames, so Roblox game servers,
   shell scripts and cron jobs can report too. See [Report API](#report-api).
+- **Read API.** A read-only JSON API under `/api/v1`, described at `/api/v1/openapi.json`,
+  for Grafana dashboards and scripts. Tokens are made on your account page. See
+  [Read API](#read-api-and-grafana).
 - **Alerts.** Each project has its own webhooks and email recipients, set in its settings: new
   issues, regressions, or both, each with a **Send test** button. Discord, Slack, Mattermost
   and Rocket.Chat webhooks get a branded Burrow card (posted as Burrow with the fox, a
@@ -106,6 +109,33 @@ you a ready-made ModuleScript, filled in with your URL and key. It catches every
 error through `ScriptContext.Error`, relays client errors through a RemoteEvent, and
 batches reports to stay well inside Roblox's HTTP limits. Roblox servers only reach public
 HTTPS addresses, so Burrow has to be deployed with a public `BURROW_BASE_URL`.
+
+## Read API and Grafana
+
+Burrow serves a read-only JSON API at `/api/v1`, described by an OpenAPI 3.1 document at
+`/api/v1/openapi.json` (public, no token needed). Make a token under **API tokens** on
+your account page; it's shown once and starts with `brw_`. A token sees the same projects
+you do, never with Instance Admin, and can't change anything. Revoke it there too.
+
+```sh
+curl https://errors.example.com/api/v1/projects -H "Authorization: Bearer brw_..."
+```
+
+| Endpoint | Returns |
+|---|---|
+| `GET /projects` | Your projects, with unresolved count and last event time |
+| `GET /projects/{slug}` | One project, with issue totals per status |
+| `GET /projects/{slug}/issues` | Issues. Filters: `status`, `level` (comma-separated), `query`, `sort`, `limit` (≤ 200), `offset` |
+| `GET /projects/{slug}/activity?days=14` | Events per UTC day, oldest first (`days` ≤ 90) |
+| `GET /activity?days=14` | The same for every project, one row per project per day |
+| `GET /issues/{id}?days=14` | One issue, with its events per day |
+
+**Grafana.** Install the [Infinity](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/)
+data source, set its authentication to *Bearer token* with your token, and add your Burrow
+URL under allowed hosts. Then query, for example, `https://errors.example.com/api/v1/activity?days=30`
+as JSON with `time` as a time column, `events` as a number and `project` as a string, and
+group by `project` for one line per project. Daily counts only cover events Burrow still
+keeps (`BURROW_RETENTION_DAYS`).
 
 ## Configuration
 

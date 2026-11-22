@@ -134,3 +134,14 @@ a.row-title { color: var(--text); }
   .row-actions { justify-content: flex-start; }
   .webhook-actions > form, .webhook-actions button { flex: 1; width: 100%; }
 }
+
+/* Account: two columns on wide screens (your login and this browser on the
+   left, the API and email on the right) rather than one narrow strip. */
+.account-grid { display: grid; gap: 0 56px; }
+.account-col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.account-grid .narrow-panel { max-width: 560px; }
+@media (min-width: 1100px) {
+  .account-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  .account-grid .account-col + .account-col .narrow-panel { max-width: 720px; }
+}
+@media (max-width: 1099px) { .account-col + .account-col { margin-top: 16px; } }

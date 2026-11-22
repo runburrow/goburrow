@@ -1,0 +1,620 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Burrow API",
+    "version": "1",
+    "description": "Read-only access to this Burrow's projects, issues and event counts, for dashboards such as Grafana (Infinity data source) and scripts.\n\nAuthenticate with an API token from your Account page, sent as `Authorization: Bearer brw_...`. A token sees the projects of its owner's teams. Instance Admin powers never apply to tokens.\n\nTimes are RFC 3339 in UTC. Daily counts use UTC days and only cover events Burrow still keeps (see its retention setting)."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "operationId": "getSpec",
+        "summary": "This document",
+        "security": [],
+        "tags": [
+          "meta"
+        ],
+        "responses": {
+          "200": {
+            "description": "The OpenAPI description of this API.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "operationId": "listProjects",
+        "summary": "List projects",
+        "tags": [
+          "projects"
+        ],
+        "description": "Every project the token can see, grouped by team.",
+        "responses": {
+          "200": {
+            "description": "Projects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Project"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/projects/{slug}": {
+      "get": {
+        "operationId": "getProject",
+        "summary": "Get a project",
+        "tags": [
+          "projects"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The project's slug, as in its dashboard URL.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project, with issue totals per status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/projects/{slug}/issues": {
+      "get": {
+        "operationId": "listIssues",
+        "summary": "List a project's issues",
+        "tags": [
+          "issues"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The project's slug, as in its dashboard URL.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only issues with this status.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unresolved",
+                "resolved",
+                "ignored",
+                "all"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "Comma-separated levels, for example `fatal,error`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Text to find in the title or culprit.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "last_seen",
+                "first_seen",
+                "times_seen"
+              ],
+              "default": "last_seen"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issues, newest activity first unless sorted otherwise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Issue"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/projects/{slug}/activity": {
+      "get": {
+        "operationId": "getProjectActivity",
+        "summary": "Events per day for a project",
+        "tags": [
+          "activity"
+        ],
+        "description": "All events the project received each UTC day, whatever their issue's status. One row per day, oldest first.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The project's slug, as in its dashboard URL.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "description": "How many UTC days to return, ending with today.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 14
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daily counts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Day"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/activity": {
+      "get": {
+        "operationId": "getActivity",
+        "summary": "Events per day for every project",
+        "tags": [
+          "activity"
+        ],
+        "description": "One row per project per UTC day, oldest first. In Grafana, group by `project` to get a series per project.",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "How many UTC days to return, ending with today.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 14
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daily counts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Day"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/issues/{id}": {
+      "get": {
+        "operationId": "getIssue",
+        "summary": "Get an issue",
+        "tags": [
+          "issues"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "description": "How many UTC days to return, ending with today.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 14
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The issue, with its events per day.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token from your Account page. Tokens start with `brw_`."
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "The request couldn't be answered.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "No token, or a revoked or unknown one.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "What went wrong, in plain words."
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "platform",
+          "team",
+          "unresolved",
+          "last_seen",
+          "created_at",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Also the project id in its DSN."
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "description": "The platform picked when the project was made. May be empty."
+          },
+          "team": {
+            "type": "string",
+            "description": "The team's name."
+          },
+          "unresolved": {
+            "type": "integer",
+            "description": "Unresolved issues right now."
+          },
+          "last_seen": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the project's latest event arrived. Null before the first one."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The project's page in the dashboard."
+          }
+        }
+      },
+      "ProjectDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Project"
+          },
+          {
+            "type": "object",
+            "required": [
+              "issues"
+            ],
+            "properties": {
+              "issues": {
+                "$ref": "#/components/schemas/StatusCounts"
+              }
+            }
+          }
+        ]
+      },
+      "StatusCounts": {
+        "type": "object",
+        "required": [
+          "unresolved",
+          "resolved",
+          "ignored",
+          "all"
+        ],
+        "properties": {
+          "unresolved": {
+            "type": "integer"
+          },
+          "resolved": {
+            "type": "integer"
+          },
+          "ignored": {
+            "type": "integer"
+          },
+          "all": {
+            "type": "integer"
+          }
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "required": [
+          "id",
+          "project",
+          "title",
+          "culprit",
+          "level",
+          "status",
+          "regressed",
+          "first_seen",
+          "last_seen",
+          "times_seen",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "project": {
+            "type": "string",
+            "description": "The project's slug."
+          },
+          "title": {
+            "type": "string"
+          },
+          "culprit": {
+            "type": "string",
+            "description": "Where it happened, when known. May be empty."
+          },
+          "level": {
+            "type": "string",
+            "description": "fatal, error, warning, info or debug."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unresolved",
+              "resolved",
+              "ignored"
+            ]
+          },
+          "regressed": {
+            "type": "boolean",
+            "description": "It came back after being resolved and nobody has set its status since."
+          },
+          "first_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "times_seen": {
+            "type": "integer",
+            "description": "Events counted over the issue's whole life, including pruned ones."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The issue's page in the dashboard."
+          }
+        }
+      },
+      "IssueDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Issue"
+          },
+          {
+            "type": "object",
+            "required": [
+              "activity"
+            ],
+            "properties": {
+              "activity": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Day"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Day": {
+        "type": "object",
+        "required": [
+          "date",
+          "time",
+          "events"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The UTC day."
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Midnight UTC at the start of that day, for time-series tools."
+          },
+          "project": {
+            "type": "string",
+            "description": "The project's slug. Left out of an issue's activity."
+          },
+          "events": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}
