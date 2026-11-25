@@ -1,0 +1,107 @@
+/*
+ * The Read API docs page (/api/v1/docs): Burrow's colours on Scalar.
+ * Standalone on purpose: style.css styles bare buttons and inputs, which
+ * would fight Scalar's own UI, so the few tokens needed are repeated here.
+ * Keep them in step with style.css and theme-barcode.css.
+ */
+@font-face { font-family: "IBM Plex Mono"; src: url("/static/fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("/static/fonts/IBMPlexMono-Medium.woff2") format("woff2"); font-weight: 500 700; font-style: normal; font-display: swap; }
+:root {
+  color-scheme: dark;
+  --bg: #0b0b0a; --surface: #121211; --surface-2: #1c1c1a;
+  --text: #f2efe6; --muted: #a9a79e; --border: #2f2f2b; --rule: #706f68;
+  --red: #e5322d; --blue: #8aa2ff; --warn: #e3b552; --ok: #7fb069; --fox: #e07a43;
+  --radius: 4px;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bar-h: 56px;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f2f1ee; --surface: #faf9f6; --surface-2: #e6e3dc;
+    --text: #1a1916; --muted: #58564f; --border: #d5d2ca; --rule: #86847e;
+    --red: #bc2621; --blue: #2f49a3; --warn: #7d5200; --ok: #3d6b2a; --fox: #b4531f;
+  }
+}
+:root[data-theme="barcode"] {
+  --bg: #000; --surface: #0d0d0d; --surface-2: #1f1f1f;
+  --text: #fff; --muted: #a6a6a6; --border: #3a3a3a; --rule: #8c8c8c;
+  --red: #fff; --blue: #fff; --warn: #fff; --ok: #fff; --fox: #fff;
+  --radius: 0px; --sans: var(--mono);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="barcode"] {
+    --bg: #fff; --surface: #f2f2f2; --surface-2: #e0e0e0;
+    --text: #000; --muted: #4d4d4d; --border: #c8c8c8; --rule: #757575;
+    --red: #000; --blue: #000; --warn: #000; --ok: #000; --fox: #000;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: .875rem/1.55 var(--sans); }
+a { color: inherit; }
+
+/* Top bar: the way back into Burrow. Scalar's sidebar sits under it. */
+.docs-bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; height: var(--bar-h); padding: 0 24px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.docs-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.docs-brand span { font: 500 1.25rem/1 var(--mono); letter-spacing: -.03em; }
+.docs-brand .fox-mark { width: 30px; height: 30px; }
+.docs-sep { color: var(--rule); }
+.docs-title { font-weight: 600; }
+.docs-links { display: flex; gap: 18px; margin-left: auto; }
+.docs-links a { color: var(--muted); text-decoration: none; }
+.docs-links a:hover { color: var(--text); text-decoration: underline; }
+.docs-noscript { padding: 24px; }
+@media (max-width: 640px) {
+  .docs-bar { padding: 0 16px; gap: 8px; }
+  .docs-title, .docs-sep { display: none; }
+  .docs-links { gap: 12px; }
+}
+
+/* The fox mark, as in style.css. */
+.fox { color: var(--fox); overflow: visible; }
+.fox .fox-ink { stroke: currentColor; stroke-width: 1.2; fill: none; stroke-linecap: round; }
+.fox .fox-tip, .fox .fox-ruff { stroke: var(--text); stroke-width: 1.2; fill: none; stroke-linecap: round; }
+.fox .fox-nose { fill: var(--text); }
+.fox .eye-ground { fill: var(--bg); }
+.fox .fox-eyes { fill: var(--text); }
+
+/* Scalar, themed with theme: "none" so only these colours apply. */
+:root { --scalar-custom-header-height: var(--bar-h); }
+.light-mode, .dark-mode {
+  --scalar-font: var(--sans);
+  --scalar-font-code: var(--mono);
+  --scalar-radius: var(--radius);
+  --scalar-radius-lg: var(--radius);
+  --scalar-radius-xl: var(--radius);
+  --scalar-background-1: var(--bg);
+  --scalar-background-2: var(--surface);
+  --scalar-background-3: var(--surface-2);
+  --scalar-background-accent: color-mix(in srgb, var(--blue) 14%, transparent);
+  --scalar-color-1: var(--text);
+  --scalar-color-2: var(--muted);
+  --scalar-color-3: color-mix(in srgb, var(--muted) 75%, var(--bg));
+  --scalar-color-accent: var(--blue);
+  --scalar-border-color: var(--border);
+  --scalar-color-green: var(--ok);
+  --scalar-color-red: var(--red);
+  --scalar-color-yellow: var(--warn);
+  --scalar-color-blue: var(--blue);
+  --scalar-color-orange: var(--fox);
+  --scalar-color-purple: var(--blue);
+  --scalar-button-1: var(--text);
+  --scalar-button-1-color: var(--bg);
+  --scalar-button-1-hover: color-mix(in srgb, var(--text) 82%, var(--blue));
+  --scalar-sidebar-background-1: var(--bg);
+  --scalar-sidebar-color-1: var(--text);
+  --scalar-sidebar-color-2: var(--muted);
+  --scalar-sidebar-border-color: var(--border);
+  --scalar-sidebar-item-hover-background: var(--surface-2);
+  --scalar-sidebar-item-hover-color: var(--text);
+  --scalar-sidebar-item-active-background: var(--surface-2);
+  --scalar-sidebar-color-active: var(--text);
+  --scalar-sidebar-search-background: var(--surface);
+  --scalar-sidebar-search-border-color: var(--border);
+  --scalar-sidebar-search-color: var(--muted);
+}
