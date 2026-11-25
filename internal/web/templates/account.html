@@ -8,6 +8,8 @@
 
 {{if eq .Flash "password"}}<p class="alert ok" role="status">Password changed. You've been logged out everywhere else.</p>{{end}}
 
+<div class="account-grid">
+<div class="account-col">
 <section class="panel narrow-panel" aria-labelledby="password-heading">
   <h2 id="password-heading">Change password</h2>
   {{with .Data.Error}}<p class="alert error" role="alert">{{.}}</p>{{end}}
@@ -27,24 +29,6 @@
     <div class="form-actions"><button class="primary" type="submit">Change password</button></div>
   </form>
 </section>
-
-{{if .Session.User.IsAdmin}}
-<section class="panel narrow-panel" id="email" aria-labelledby="email-heading">
-  <h2 id="email-heading">Email</h2>
-  {{with .Data.TestResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}
-  {{with .Data.MailSetup}}
-  <p class="muted">Burrow sends email alerts and invites through:</p>
-  <div class="copybox"><code>{{.}}</code></div>
-  <form method="post" action="/account/test-email" class="test-email-form">
-    <input type="hidden" name="csrf" value="{{$.Session.CSRF}}">
-    <button type="submit">Send test email</button>
-    <span class="help">Sends a short message to {{$.Session.User.Email}} to check the setup end to end.</span>
-  </form>
-  {{else}}
-  <p class="muted">Email isn't set up, so alerts go to webhooks only and invite links are copied by hand. To turn it on, set <code>BURROW_SMTP_HOST</code>, <code>BURROW_SMTP_FROM</code>, and if your server needs them <code>BURROW_SMTP_USERNAME</code> and <code>BURROW_SMTP_PASSWORD</code>, then restart Burrow. The README lists every setting.</p>
-  {{end}}
-</section>
-{{end}}
 
 <section class="panel narrow-panel" id="appearance" aria-labelledby="appearance-heading">
   <h2 id="appearance-heading">Appearance</h2>
@@ -75,4 +59,64 @@
     <button type="submit">Log out</button>
   </form>
 </section>
+</div>
+
+<div class="account-col">
+<section class="panel narrow-panel" id="api" aria-labelledby="api-heading">
+  <h2 id="api-heading">API tokens</h2>
+  {{if eq .Flash "token-revoked"}}<p class="alert ok" role="status">Token revoked. Anything still using it now gets "401 Unauthorized".</p>{{end}}
+  {{with .Data.TokenError}}<p class="alert error" role="alert">{{.}}</p>{{end}}
+  {{with .Data.NewToken}}
+  <div class="alert ok" role="status">
+    <p><strong>API token created.</strong> Copy it now: for security it isn't shown again.</p>
+    <div class="copybox"><code id="api-token">{{.}}</code><button type="button" class="small js-only" data-copy="#api-token">Copy token</button></div>
+  </div>
+  {{end}}
+  <p class="muted">Tokens give read-only access to the JSON API, for dashboards like Grafana and for scripts. A token sees the same projects you do, without Instance Admin, and can't change anything.</p>
+  <div class="copybox"><code id="api-base">{{.Data.APIBase}}</code><button type="button" class="small js-only" data-copy="#api-base">Copy URL</button></div>
+  <p class="help">Send the token as <code>Authorization: Bearer &lt;token&gt;</code>. Browse and try the endpoints in the <a href="/api/v1/docs">interactive API docs</a>, or fetch the spec at <a href="/api/v1/openapi.json">/api/v1/openapi.json</a> (OpenAPI 3.1). In Grafana, add an Infinity data source with Bearer token auth and this URL as an allowed host.</p>
+  <form method="post" action="/account/api-tokens" class="invite-form">
+    <input type="hidden" name="csrf" value="{{.Session.CSRF}}">
+    <label for="token-name"><span>Name</span>
+      <input id="token-name" name="name" maxlength="100" placeholder="Grafana" autocomplete="off" required>
+    </label>
+    <button type="submit">Create token</button>
+  </form>
+  {{with .Data.APITokens}}
+  <h3 class="snippet-title">Your tokens</h3>
+  <ul class="rows">
+    {{range .}}
+    <li class="row">
+      <span class="row-main">
+        <span class="row-title">{{.Name}}</span>
+        <span class="help">ends in …{{.Hint}} · created <time datetime="{{isodate .CreatedAt}}" title="{{datetime .CreatedAt}}">{{ago .CreatedAt}}</time> · {{if .LastUsedAt.IsZero}}never used{{else}}last used <time datetime="{{isodate .LastUsedAt}}" title="{{datetime .LastUsedAt}}">{{ago .LastUsedAt}}</time>{{end}}</span>
+      </span>
+      <form method="post" action="/account/api-tokens/{{.ID}}/revoke" class="row-actions">
+        <input type="hidden" name="csrf" value="{{$.Session.CSRF}}"><button type="submit" class="small">Revoke</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+
+{{if .Session.User.IsAdmin}}
+<section class="panel narrow-panel" id="email" aria-labelledby="email-heading">
+  <h2 id="email-heading">Email</h2>
+  {{with .Data.TestResult}}<p class="alert {{if .OK}}ok{{else}}error{{end}}" role="{{if .OK}}status{{else}}alert{{end}}">{{.Text}}</p>{{end}}
+  {{with .Data.MailSetup}}
+  <p class="muted">Burrow sends email alerts and invites through:</p>
+  <div class="copybox"><code>{{.}}</code></div>
+  <form method="post" action="/account/test-email" class="test-email-form">
+    <input type="hidden" name="csrf" value="{{$.Session.CSRF}}">
+    <button type="submit">Send test email</button>
+    <span class="help">Sends a short message to {{$.Session.User.Email}} to check the setup end to end.</span>
+  </form>
+  {{else}}
+  <p class="muted">Email isn't set up, so alerts go to webhooks only and invite links are copied by hand. To turn it on, set <code>BURROW_SMTP_HOST</code>, <code>BURROW_SMTP_FROM</code>, and if your server needs them <code>BURROW_SMTP_USERNAME</code> and <code>BURROW_SMTP_PASSWORD</code>, then restart Burrow. The README lists every setting.</p>
+  {{end}}
+</section>
+{{end}}
+</div>
+</div>
 {{end}}

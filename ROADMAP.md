@@ -22,6 +22,7 @@ These are rough priorities, not promises.
 - [x] **Invite links**: single-use, expiring, hashed, optionally email-locked
 - [x] Account page (change password, which ends other sessions) and admin user management
 - [x] **Email**: SMTP for alert emails (per project, rate-limited) and sending invites, with test buttons
+- [x] **Read API**: read-only JSON API with an OpenAPI 3.1 spec and per-user API tokens, for Grafana and scripts
 
 ## Next up
 - [ ] **SSO**: OIDC login (GitHub, Google, Authentik, Keycloak…)
@@ -34,7 +35,7 @@ These are rough priorities, not promises.
 
 ## Later
 - [ ] Postgres storage backend for bigger installs / HA
-- [ ] REST API + API tokens (for CLI tools and integrations)
+- [ ] Write endpoints for the API (resolve/ignore from scripts)
 - [ ] Cron monitor check-ins (`check_in` envelope items)
 - [ ] Basic performance/transaction summaries (currently accepted and dropped)
 - [ ] Debug symbol (dSYM / PDB) support for native crash symbolication

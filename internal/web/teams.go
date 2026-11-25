@@ -332,6 +332,14 @@ func (s *Server) accountData(r *http.Request, errMsg string) map[string]any {
 	if msg := emailResultMessage(r.URL.Query().Get("result")); msg != nil && r.URL.Query().Get("flash") == "test-email" {
 		data["TestResult"] = msg
 	}
+	if sess := sessionFrom(r.Context()); sess != nil {
+		if tokens, err := s.Store.ListAPITokens(r.Context(), sess.User.ID); err == nil {
+			data["APITokens"] = tokens
+		} else {
+			s.Log.Error("list api tokens", "err", err)
+		}
+	}
+	data["APIBase"] = s.origin() + "/api/v1"
 	return data
 }
 

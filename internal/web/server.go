@@ -66,6 +66,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	s.throttle = newLoginThrottle(s.now)
 	mux := http.NewServeMux()
 	s.Ingest.Register(mux)
+	s.registerAPI(mux)
 
 	static, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", cacheForever(http.FileServerFS(static))))
@@ -118,6 +119,8 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /account/test-email", s.authed(s.adminOnly(s.accountTestEmail)))
 	mux.HandleFunc("POST /account/instance-admin", s.authed(s.instanceAdmin(true)))
 	mux.HandleFunc("POST /account/instance-admin/off", s.authed(s.instanceAdmin(false)))
+	mux.HandleFunc("POST /account/api-tokens", s.authed(s.apiTokenCreate))
+	mux.HandleFunc("POST /account/api-tokens/{id}/revoke", s.authed(s.apiTokenRevoke))
 
 	mux.HandleFunc("GET /admin/users", s.authed(s.adminOnly(s.adminUsers)))
 	mux.HandleFunc("POST /admin/users/{user}/admin", s.authed(s.adminOnly(s.adminSetAdmin)))
@@ -190,6 +193,10 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, code int, page, 
 }
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/v1/") {
+		s.apiNotFound(w, r) // API clients get JSON, not the designed page
+		return
+	}
 	s.render(w, r, http.StatusNotFound, "error", "Not found", "Dug here, found nothing. The page may have moved, or the link is wrong.")
 }
 

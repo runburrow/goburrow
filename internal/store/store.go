@@ -192,6 +192,19 @@ var migrations = []string{
 	// 9: instance admins act as regular users until they switch to
 	// Instance Admin for a while, per session.
 	`ALTER TABLE sessions ADD COLUMN elevated_until INTEGER NOT NULL DEFAULT 0;`,
+
+	// 10: read-only API tokens, one set per user, for the JSON API that
+	// dashboards like Grafana read. Stored hashed, like sessions.
+	`CREATE TABLE api_tokens (
+		id           INTEGER PRIMARY KEY,
+		user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		name         TEXT NOT NULL,
+		token_hash   TEXT NOT NULL UNIQUE,
+		hint         TEXT NOT NULL,
+		created_at   INTEGER NOT NULL,
+		last_used_at INTEGER NOT NULL DEFAULT 0
+	);
+	CREATE INDEX api_tokens_by_user ON api_tokens(user_id, id);`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {
