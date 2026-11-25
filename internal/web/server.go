@@ -67,6 +67,9 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux := http.NewServeMux()
 	s.Ingest.Register(mux)
 	s.registerAPI(mux)
+	if err := s.registerDocs(mux); err != nil {
+		return nil, err
+	}
 
 	static, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", cacheForever(http.FileServerFS(static))))

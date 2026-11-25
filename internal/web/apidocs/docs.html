@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"{{with .Theme}} data-theme="{{.}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex, nofollow">
+<title>API docs · Burrow</title>
+<link rel="icon" href="/static/favicon.svg?v={{.Asset}}" type="image/svg+xml">
+<link rel="stylesheet" href="/api/v1/docs/docs.css?v={{.Asset}}">
+<script src="/api/v1/docs/scalar-{{.ScalarVersion}}.js" defer></script>
+<script src="/api/v1/docs/docs.js?v={{.Asset}}" defer></script>
+</head>
+<body>
+<header class="docs-bar">
+  <a class="docs-brand" href="/" aria-label="Burrow projects">{{template "fox-mark" .}}<span>burrow</span></a>
+  <span class="docs-sep" aria-hidden="true">/</span>
+  <span class="docs-title">Read API</span>
+  <nav class="docs-links" aria-label="API links">
+    <a href="/api/v1/openapi.json">openapi.json</a>
+    <a href="/account#api">Get a token</a>
+  </nav>
+</header>
+<noscript><p class="docs-noscript">The interactive docs need JavaScript. The raw spec is at <a href="/api/v1/openapi.json">/api/v1/openapi.json</a>.</p></noscript>
+<div id="burrow-api-docs" data-openapi="/api/v1/openapi.json"></div>
+</body>
+</html>
